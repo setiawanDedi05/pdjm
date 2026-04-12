@@ -1,20 +1,28 @@
 import { Op } from 'sequelize';
 import { Product } from '@/models';
 
-export async function getAllProducts(search?: string) {
+export async function getAllProducts(search?: string, page = 1, pageSize = 10) {
   const where: Record<string, unknown> = {};
-
   if (search) {
     where[Op.or as unknown as string] = [
       { name: { [Op.iLike]: `%${search}%` } },
       { serial_number: { [Op.iLike]: `%${search}%` } },
     ];
   }
-
-  return Product.findAll({
+  const offset = (page - 1) * pageSize;
+  const { rows, count } = await Product.findAndCountAll({
     where,
     order: [['name', 'ASC']],
+    offset,
+    limit: pageSize,
   });
+  return {
+    items: rows,
+    total: count,
+    totalPages: Math.ceil(count / pageSize),
+    page,
+    pageSize,
+  };
 }
 
 export async function getProductBySerial(serial_number: string) {

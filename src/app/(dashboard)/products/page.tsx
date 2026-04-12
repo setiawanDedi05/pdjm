@@ -22,11 +22,13 @@ const emptyForm = { serial_number: '', name: '', description: '', stock: 0, pric
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [pendingPage, setPendingPage] = useState<number|null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [pageSize, setPageSize] = useState(10);
     // Handle Excel import
     const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -117,7 +119,7 @@ export default function ProductsPage() {
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
-      const q = `?page=${page}&search=${encodeURIComponent(search)}`;
+      const q = `?page=${page}&pageSize=${pageSize}&search=${encodeURIComponent(search)}`;
       const res = await fetch(`/api/products${q}`, { credentials: 'include' });
       const data = await res.json();
       if (data.success) {
@@ -128,8 +130,9 @@ export default function ProductsPage() {
       toast.error('Gagal memuat produk');
     } finally {
       setLoading(false);
+      setPendingPage(null);
     }
-  }, [search, page]);
+  }, [search, page, pageSize]);
 
   useEffect(() => {
     const t = setTimeout(fetchProducts, 300);
@@ -252,38 +255,69 @@ export default function ProductsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <ReusableTable<Product>
-            columns={[
-              { key: 'serial_number', header: 'Serial', render: (p) => p.alias_supplier ? `${p.alias_supplier}-${p.serial_number}` : p.serial_number, className: 'font-mono text-xs' },
-              { key: 'name', header: 'Nama', className: 'font-medium' },
-              { key: 'description', header: 'Description', render: (p) => p.description ?? '-', className: 'font-medium' },
-              { key: 'stock', header: 'Stok', render: (p) => <span className={p.stock <= 5 ? 'text-red-600 font-bold' : ''}>{p.stock}</span>, className: 'text-right' },
-              { key: 'price_buy', header: 'Harga Beli', render: (p) => formatCurrency(p.price_buy), className: 'text-right' },
-              { key: 'price_sell', header: 'Harga Jual', render: (p) => formatCurrency(p.price_sell), className: 'text-right' },
-              { key: 'actions', header: 'Aksi', render: (p) => (
-                <div className="flex gap-1 justify-center">
-                  <Button size="icon" variant="ghost" className="h-7 w-7 text-blue-500" title="Lihat QR Code" onClick={() => openQr(p)}>
-                    <QrCode className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(p)}>
-                    <Edit className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500" onClick={() => handleDelete(p)}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              ), className: 'text-center' },
-            ]}
-            data={products}
-            loading={loading}
-            emptyText={<><Package className="h-12 w-12 mx-auto mb-2 text-slate-300" /><p className="text-slate-400">Tidak ada produk</p></>}
-            rowKey={(row) => row.id}
-          />
-          <div className="mt-4 flex justify-end">
-            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+          <div className="relative">
+            <ReusableTable<Product>
+              columns={[
+                { key: 'serial_number', header: 'Serial', render: (p) => p.alias_supplier ? `${p.alias_supplier}-${p.serial_number}` : p.serial_number, className: 'font-mono text-xs' },
+                { key: 'name', header: 'Nama', className: 'font-medium' },
+                { key: 'description', header: 'Description', render: (p) => p.description ?? '-', className: 'font-medium' },
+                { key: 'stock', header: 'Stok', render: (p) => <span className={p.stock <= 5 ? 'text-red-600 font-bold' : ''}>{p.stock}</span>, className: 'text-right' },
+                { key: 'price_buy', header: 'Harga Beli', render: (p) => formatCurrency(p.price_buy), className: 'text-right' },
+                { key: 'price_sell', header: 'Harga Jual', render: (p) => formatCurrency(p.price_sell), className: 'text-right' },
+                { key: 'actions', header: 'Aksi', render: (p) => (
+                  <div className="flex gap-1 justify-center">
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-blue-500" title="Lihat QR Code" onClick={() => openQr(p)}>
+                      <QrCode className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(p)}>
+                      <Edit className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500" onClick={() => handleDelete(p)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ), className: 'text-center' },
+              ]}
+              data={products}
+              loading={false}
+              emptyText={<><Package className="h-12 w-12 mx-auto mb-2 text-slate-300" /><p className="text-slate-400">Tidak ada produk</p></>}
+              rowKey={(row) => row.id}
+            />
+            {loading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-10">
+                <span className="text-orange-500 font-semibold animate-pulse">Memuat...</span>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
+      <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-600">Tampilkan</span>
+              <select
+                className="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                value={pageSize}
+                onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
+              >
+                {[5, 10, 20, 50, 100].map(size => (
+                  <option key={size} value={size}>{size}</option>
+                ))}
+              </select>
+              <span className="text-sm text-slate-600">per halaman</span>
+            </div>
+            <div className="flex justify-end w-full sm:w-auto">
+              <Pagination
+                page={pendingPage ?? page}
+                totalPages={totalPages}
+                onPageChange={(p) => {
+                  if (p !== page) {
+                    setPendingPage(p);
+                    setPage(p);
+                  }
+                }}
+              />
+            </div>
+          </div>
 
       {/* Dialog Add/Edit */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

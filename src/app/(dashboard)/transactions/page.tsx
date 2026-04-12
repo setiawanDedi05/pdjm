@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Pagination } from '@/components/ui/Pagination';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Printer, Eye, ListOrdered } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -32,22 +33,33 @@ export default function TransactionsPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isCheckingMidtrans, setIsCheckingMidtrans] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pendingPage, setPendingPage] = useState<number|null>(null);
   const printRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({ contentRef: printRef });
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true);
     try {
-      const q = status !== 'all' ? `?status=${status}` : '';
-      const res = await fetch(`/api/transactions${q}`, { credentials: 'include' });
+      const params = new URLSearchParams();
+      if (status !== 'all') params.append('status', status);
+      params.append('page', String(page));
+      params.append('limit', String(pageSize));
+      const res = await fetch(`/api/transactions?${params.toString()}`, { credentials: 'include' });
       const data = await res.json();
-      if (data.success) setTransactions(data.data.transactions ?? []);
+      if (data.success) {
+        setTransactions(data.data.transactions ?? []);
+        setTotalPages(Math.max(1, Math.ceil((data.data.total || 0) / pageSize)));
+      }
     } catch {
       toast.error('Gagal memuat transaksi');
     } finally {
       setLoading(false);
+      setPendingPage(null);
     }
-  }, [status]);
+  }, [status, page, pageSize]);
 
   useEffect(() => { fetchTransactions(); }, [fetchTransactions]);
 
@@ -146,56 +158,89 @@ export default function TransactionsPage() {
       <Card>
         <CardHeader className="pb-0" />
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Invoice</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Plat</TableHead>
-                <TableHead>Metode</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Tanggal</TableHead>
-                <TableHead className="text-center">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow><TableCell colSpan={8} className="text-center py-8 text-slate-400">Memuat...</TableCell></TableRow>
-              ) : transactions.length === 0 ? (
+          <div className="relative">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12">
-                    <ListOrdered className="h-12 w-12 mx-auto mb-2 text-slate-300" />
-                    <p className="text-slate-400">Belum ada transaksi</p>
-                  </TableCell>
+                  <TableHead>Invoice</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Plat</TableHead>
+                  <TableHead>Metode</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Tanggal</TableHead>
+                  <TableHead className="text-center">Aksi</TableHead>
                 </TableRow>
-              ) : (
-                transactions.map((t) => (
-                  <TableRow key={t.id}>
-                    <TableCell className="font-mono text-xs">{t.invoice_number}</TableCell>
-                    <TableCell className="font-medium">{t.customer_name}</TableCell>
-                    <TableCell>{t.vehicle_plate}</TableCell>
-                    <TableCell className="uppercase text-xs">{t.payment_method}</TableCell>
-                    <TableCell className="text-right font-semibold">{formatCurrency(t.total_price)}</TableCell>
-                    <TableCell>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[t.status] ?? ''}`}>
-                        {t.status}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-xs text-slate-500">{formatDate(t.createdAt)}</TableCell>
-                    <TableCell className="text-center">
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openDetail(t)}>
-                        <Eye className="h-3.5 w-3.5" />
-                      </Button>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-slate-400">Memuat...</TableCell></TableRow>
+                ) : transactions.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-12">
+                      <ListOrdered className="h-12 w-12 mx-auto mb-2 text-slate-300" />
+                      <p className="text-slate-400">Belum ada transaksi</p>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  transactions.map((t) => (
+                    <TableRow key={t.id}>
+                      <TableCell className="font-mono text-xs">{t.invoice_number}</TableCell>
+                      <TableCell className="font-medium">{t.customer_name}</TableCell>
+                      <TableCell>{t.vehicle_plate}</TableCell>
+                      <TableCell className="uppercase text-xs">{t.payment_method}</TableCell>
+                      <TableCell className="text-right font-semibold">{formatCurrency(t.total_price)}</TableCell>
+                      <TableCell>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[t.status] ?? ''}`}>
+                          {t.status}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-xs text-slate-500">{formatDate(t.createdAt)}</TableCell>
+                      <TableCell className="text-center">
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openDetail(t)}>
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+            {loading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-10">
+                <span className="text-orange-500 font-semibold animate-pulse">Memuat...</span>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
-
+      <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-600">Tampilkan</span>
+              <select
+                className="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                value={pageSize}
+                onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
+              >
+                {[5, 10, 20, 50, 100].map(size => (
+                  <option key={size} value={size}>{size}</option>
+                ))}
+              </select>
+              <span className="text-sm text-slate-600">per halaman</span>
+            </div>
+            <div className="flex justify-end w-full sm:w-auto">
+              <Pagination
+                page={pendingPage ?? page}
+                totalPages={totalPages}
+                onPageChange={(p) => {
+                  if (p !== page) {
+                    setPendingPage(p);
+                    setPage(p);
+                  }
+                }}
+              />
+            </div>
+          </div>
       {/* Detail Dialog */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent className="max-w-lg">
@@ -280,4 +325,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-

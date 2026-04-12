@@ -22,7 +22,7 @@ const sharedNav = [
   { href: '/products', label: 'Produk', icon: Package },
   { href: '/transactions', label: 'Transaksi', icon: ListOrdered },
   { href: '/hutang', label: 'Hutang', icon: ListOrdered },
-  { href: '/stock', label: 'Stok Masuk', icon: TrendingDown },
+  { href: '/stock', label: 'Stok History', icon: TrendingDown },
 ];
 
 /** Extra routes that are admin-only */

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { Pagination } from '@/components/ui/Pagination';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +14,6 @@ import { Plus, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { StockLog, Product } from '@/types';
-
 export default function StockPage() {
   const [logs, setLogs] = useState<StockLog[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -22,19 +22,40 @@ export default function StockPage() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ product_id: '', amount: 1, type: 'in' as 'in' | 'out', reason: 'purchase' as string });
   const [lowStock, setLowStock] = useState<Product[]>([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pendingPage, setPendingPage] = useState<number|null>(null);
+
+  useEffect(() => {
+  console.log({
+      products
+    })
+  }, [products]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      const params = new URLSearchParams();
+      params.append('page', String(page));
+      params.append('limit', String(pageSize));
       const [logsRes, prodsRes] = await Promise.all([
-        fetch('/api/stock-logs?limit=50', { credentials: 'include' }),
+        fetch(`/api/stock-logs?${params.toString()}`, { credentials: 'include' }),
         fetch('/api/products', { credentials: 'include' }),
       ]);
       const logsData = await logsRes.json();
       const prodsData = await prodsRes.json();
-      if (logsData.success) setLogs(logsData.data.logs ?? []);
+      if (logsData.success) {
+        setLogs(logsData.data.logs ?? []);
+        setTotalPages(Math.max(1, Math.ceil((logsData.data.total || 0) / pageSize)));
+      }
       if (prodsData.success) {
-        const prods: Product[] = prodsData.data;
+        // Support both paginated and non-paginated response
+        const prods: Product[] = Array.isArray(prodsData.data)
+          ? prodsData.data
+          : Array.isArray(prodsData.data.items)
+            ? prodsData.data.items
+            : [];
         setProducts(prods);
         setLowStock(prods.filter((p) => p.stock <= 5));
       }
@@ -42,8 +63,9 @@ export default function StockPage() {
       toast.error('Gagal memuat data');
     } finally {
       setLoading(false);
+      setPendingPage(null);
     }
-  }, []);
+  }, [page, pageSize]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -108,43 +130,76 @@ export default function StockPage() {
       <Card>
         <CardHeader className="pb-0" />
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Produk</TableHead>
-                <TableHead>Tipe</TableHead>
-                <TableHead className="text-right">Jumlah</TableHead>
-                <TableHead>Alasan</TableHead>
-                <TableHead>Tanggal</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-400">Memuat...</TableCell></TableRow>
-              ) : logs.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-400">Belum ada riwayat stok</TableCell></TableRow>
-              ) : (
-                logs.map((log) => (
-                  <TableRow key={log.id}>
-                    <TableCell className="font-medium">{log.product?.name ?? '-'}</TableCell>
-                    <TableCell>
-                      <span className={`flex items-center gap-1 text-xs font-medium ${log.type === 'in' ? 'text-green-600' : 'text-red-600'}`}>
-                        {log.type === 'in'
-                          ? <><TrendingUp className="h-3 w-3" /> Masuk</>
-                          : <><TrendingDown className="h-3 w-3" /> Keluar</>}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right font-semibold">{log.amount}</TableCell>
-                    <TableCell className="capitalize text-slate-500">{log.reason}</TableCell>
-                    <TableCell className="text-xs text-slate-500">{formatDate(log.createdAt)}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+          <div className="relative">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Produk</TableHead>
+                  <TableHead>Tipe</TableHead>
+                  <TableHead className="text-right">Jumlah</TableHead>
+                  <TableHead>Alasan</TableHead>
+                  <TableHead>Tanggal</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-400">Memuat...</TableCell></TableRow>
+                ) : logs.length === 0 ? (
+                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-400">Belum ada riwayat stok</TableCell></TableRow>
+                ) : (
+                  logs.map((log) => (
+                    <TableRow key={log.id}>
+                      <TableCell className="font-medium">{log.product?.name ?? '-'}</TableCell>
+                      <TableCell>
+                        <span className={`flex items-center gap-1 text-xs font-medium ${log.type === 'in' ? 'text-green-600' : 'text-red-600'}`}>
+                          {log.type === 'in'
+                            ? <><TrendingUp className="h-3 w-3" /> Masuk</>
+                            : <><TrendingDown className="h-3 w-3" /> Keluar</>}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right font-semibold">{log.amount}</TableCell>
+                      <TableCell className="capitalize text-slate-500">{log.reason}</TableCell>
+                      <TableCell className="text-xs text-slate-500">{formatDate(log.createdAt)}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+            {loading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-10">
+                <span className="text-orange-500 font-semibold animate-pulse">Memuat...</span>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
-
+      <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-600">Tampilkan</span>
+              <select
+                className="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                value={pageSize}
+                onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
+              >
+                {[5, 10, 20, 50, 100].map(size => (
+                  <option key={size} value={size}>{size}</option>
+                ))}
+              </select>
+              <span className="text-sm text-slate-600">per halaman</span>
+            </div>
+            <div className="flex justify-end w-full sm:w-auto">
+              <Pagination
+                page={pendingPage ?? page}
+                totalPages={totalPages}
+                onPageChange={(p) => {
+                  if (p !== page) {
+                    setPendingPage(p);
+                    setPage(p);
+                  }
+                }}
+              />
+            </div>
+          </div>
       {/* Adjust Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
@@ -159,11 +214,13 @@ export default function StockPage() {
                   <SelectValue placeholder="Pilih produk..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {products.map((p) => (
+                  <>
+                  {products?.map((p) => (
                     <SelectItem key={p.id} value={String(p.id)}>
                       {p.name} (Stok: {p.stock})
                     </SelectItem>
                   ))}
+                  </>
                 </SelectContent>
               </Select>
             </div>

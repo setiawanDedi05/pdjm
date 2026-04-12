@@ -24,8 +24,10 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || undefined;
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const pageSize = parseInt(searchParams.get('pageSize') || '10', 10);
 
-    const products = await getAllProducts(search);
+    const products = await getAllProducts(search, page, pageSize);
     return apiResponse(products, 'Produk berhasil diambil');
   } catch (error) {
     return handleApiError(error);
