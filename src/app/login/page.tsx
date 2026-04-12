@@ -26,8 +26,7 @@ function LoginForm() {
 
     try {
       await login(username, password);
-      const redirect = searchParams.get('redirect') || '/kasir';
-      router.push(redirect);
+      router.push('/');
       toast.success('Login berhasil!');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Login gagal');

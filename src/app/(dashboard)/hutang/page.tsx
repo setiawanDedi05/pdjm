@@ -11,9 +11,11 @@ import { Printer, Eye, ListOrdered } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { Transaction, TransactionStatus } from '@/types';
-import PrintReceipt from '@/components/PrintReceipt';
 import { useReactToPrint } from 'react-to-print';
 import { useAuthStore } from '@/stores/authStore';
+import dynamic from 'next/dynamic';
+
+const PrintReceipt = dynamic(() => import('@/components/PrintReceipt'), { ssr: false });
 
 const statusColors: Record<string, string> = {
   paid: 'bg-green-100 text-green-700',
@@ -21,103 +23,58 @@ const statusColors: Record<string, string> = {
   cancelled: 'bg-red-100 text-red-700',
 };
 
-export default function TransactionsPage() {
+export default function HutangPage() {
   const { user } = useAuthStore();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [hutangList, setHutangList] = useState<Transaction[]>([]);
   const [status, setStatus] = useState('all');
   const [loading, setLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [selected, setSelected] = useState<Transaction | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [isCheckingMidtrans, setIsCheckingMidtrans] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({ contentRef: printRef });
 
-  const fetchTransactions = useCallback(async () => {
+  const fetchHutangList = useCallback(async () => {
     setLoading(true);
     try {
-      const q = status !== 'all' ? `?status=${status}` : '';
+      const q = status === 'all' ? `?metode=hutang` : `?metode=hutang&status=${status}`;
       const res = await fetch(`/api/transactions${q}`, { credentials: 'include' });
       const data = await res.json();
-      if (data.success) setTransactions(data.data.transactions ?? []);
-    } catch {
-      toast.error('Gagal memuat transaksi');
+      if (data.success) setHutangList(data.data.transactions ?? []);
+    } catch(error) {
+        console.error('Error fetching transactions:', error);
+        toast.error('Gagal memuat transaksi');
     } finally {
       setLoading(false);
     }
   }, [status]);
 
-  useEffect(() => { fetchTransactions(); }, [fetchTransactions]);
+  useEffect(() => { fetchHutangList(); }, [fetchHutangList]);
 
   function openDetail(t: Transaction) {
     setSelected(t);
     setDetailOpen(true);
   }
 
-  async function handleUpdateStatus() {
+  async function handleUpdateStatus(status?: TransactionStatus) {
     if (!selected || isUpdating) return;
     setIsUpdating(true);
     try {
       const res = await fetch(`/api/transactions/${selected.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'cancelled' }),
+        body: JSON.stringify({ status }),
         credentials: 'include',
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error);
       toast.success('Status transaksi diperbarui');
-      fetchTransactions();
+      fetchHutangList();
       setDetailOpen(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Gagal update status');
     } finally {
       setIsUpdating(false);
-    }
-  }
-
-  async function handleCekStatusMidtrans() {
-    if (!selected || isCheckingMidtrans) return;
-    const orderId = selected.midtrans_order_id || selected.invoice_number;
-    setIsCheckingMidtrans(true);
-    try {
-      const res = await fetch(`/api/midtrans/status/${orderId}`, {
-        credentials: 'include',
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || 'Gagal memeriksa status Midtrans');
-
-      const midtransStatus: string = data.data.transaction_status;
-      let mappedStatus: TransactionStatus;
-      if (midtransStatus === 'settlement' || midtransStatus === 'capture') {
-        mappedStatus = 'paid';
-      } else if (midtransStatus === 'pending') {
-        mappedStatus = 'pending';
-      } else {
-        mappedStatus = 'cancelled';
-      }
-
-      if (mappedStatus === selected.status) {
-        toast.info(`Status Midtrans: ${midtransStatus} (tidak ada perubahan)`);
-        return;
-      }
-
-      const patchRes = await fetch(`/api/transactions/${selected.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: mappedStatus }),
-        credentials: 'include',
-      });
-      const patchData = await patchRes.json();
-      if (!patchRes.ok || !patchData.success) throw new Error(patchData.error || 'Gagal memperbarui status');
-
-      toast.success(`Status diperbarui: ${mappedStatus}`);
-      fetchTransactions();
-      setDetailOpen(false);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Gagal memeriksa status Midtrans');
-    } finally {
-      setIsCheckingMidtrans(false);
     }
   }
 
@@ -132,7 +89,7 @@ export default function TransactionsPage() {
           <SelectTrigger className="w-40">
             <SelectValue placeholder="Filter status" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className='bg-white'>
             <SelectItem value="all">Semua</SelectItem>
             <SelectItem value="paid">Paid</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
@@ -148,19 +105,20 @@ export default function TransactionsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Invoice</TableHead>
+                <TableHead>Toko</TableHead>
                 <TableHead>Customer</TableHead>
-                <TableHead>Plat</TableHead>
-                <TableHead>Metode</TableHead>
+                <TableHead>No Telp</TableHead>
                 <TableHead className="text-right">Total</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Tanggal</TableHead>
+                <TableHead>Jatuh Tempo</TableHead>
                 <TableHead className="text-center">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow><TableCell colSpan={8} className="text-center py-8 text-slate-400">Memuat...</TableCell></TableRow>
-              ) : transactions.length === 0 ? (
+              ) : hutangList.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-12">
                     <ListOrdered className="h-12 w-12 mx-auto mb-2 text-slate-300" />
@@ -168,12 +126,12 @@ export default function TransactionsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                transactions.map((t) => (
+                hutangList.map((t) => (
                   <TableRow key={t.id}>
                     <TableCell className="font-mono text-xs">{t.invoice_number}</TableCell>
+                    <TableCell className="font-medium">{t.toko_name}</TableCell>
                     <TableCell className="font-medium">{t.customer_name}</TableCell>
-                    <TableCell>{t.vehicle_plate}</TableCell>
-                    <TableCell className="uppercase text-xs">{t.payment_method}</TableCell>
+                    <TableCell className="font-medium">{t.no_telp}</TableCell>
                     <TableCell className="text-right font-semibold">{formatCurrency(t.total_price)}</TableCell>
                     <TableCell>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[t.status] ?? ''}`}>
@@ -181,6 +139,7 @@ export default function TransactionsPage() {
                       </span>
                     </TableCell>
                     <TableCell className="text-xs text-slate-500">{formatDate(t.createdAt)}</TableCell>
+                    <TableCell className="text-xs text-slate-500">{t.due_date ? formatDate(new Date(t.due_date)) : '-'}</TableCell>
                     <TableCell className="text-center">
                       <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openDetail(t)}>
                         <Eye className="h-3.5 w-3.5" />
@@ -205,7 +164,10 @@ export default function TransactionsPage() {
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div><span className="text-slate-500">Invoice:</span> <span className="font-mono font-semibold">{selected.invoice_number}</span></div>
                 <div><span className="text-slate-500">Tanggal:</span> <span>{formatDate(selected.createdAt)}</span></div>
+                <div><span className="text-slate-500">Tanggal Jatuh Tempo:</span> <span>{selected.due_date ? formatDate(new Date(selected.due_date)) : '-'}</span></div>
+                <div><span className="text-slate-500">Toko:</span> <span>{selected.toko_name}</span></div>
                 <div><span className="text-slate-500">Customer:</span> <span>{selected.customer_name}</span></div>
+                <div><span className="text-slate-500">No Telp:</span> <span>{selected.no_telp}</span></div>
                 <div><span className="text-slate-500">Plat:</span> <span>{selected.vehicle_plate}</span></div>
                 <div><span className="text-slate-500">Metode:</span> <span className="uppercase">{selected.payment_method}</span></div>
                 <div className="flex items-center gap-2">
@@ -244,22 +206,22 @@ export default function TransactionsPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={handleUpdateStatus}
+                      onClick={() => handleUpdateStatus('paid')}
+                      disabled={isUpdating}
+                    >
+                      {isUpdating ? 'Menyimpan...' : 'Tandai Lunas'}
+                    </Button>
+                ) : null}
+                {selected.status === 'pending'  ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleUpdateStatus('cancelled')}
                       disabled={isUpdating}
                     >
                       {isUpdating ? 'Menyimpan...' : 'Batalkan'}
                     </Button>
                 ) : null}
-                {selected.status === 'pending' && selected.payment_method === 'qris' && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleCekStatusMidtrans}
-                    disabled={isCheckingMidtrans}
-                  >
-                    {isCheckingMidtrans ? 'Memeriksa...' : 'Cek Status Midtrans'}
-                  </Button>
-                )}
                 <Button size="sm" variant="outline" onClick={() => handlePrint()} className="ml-auto">
                   <Printer className="h-3.5 w-3.5 mr-1" /> Cetak
                 </Button>

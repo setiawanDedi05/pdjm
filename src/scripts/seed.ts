@@ -37,16 +37,16 @@ async function main() {
 
   // ─── Sample products ───────────────────────────────────────────────────────
   const products = [
-    { serial_number: 'OIL-5W30-1L', name: 'Oli Mesin 5W-30 1 Liter', category: 'Oli', stock: 50, price_buy: 45000, price_sell: 65000 },
-    { serial_number: 'OIL-10W40-1L', name: 'Oli Mesin 10W-40 1 Liter', category: 'Oli', stock: 40, price_buy: 40000, price_sell: 58000 },
-    { serial_number: 'FILTER-OIL-AVZ', name: 'Filter Oli Toyota Avanza', category: 'Filter', stock: 30, price_buy: 25000, price_sell: 40000 },
-    { serial_number: 'FILTER-AIR-AVZ', name: 'Filter Udara Toyota Avanza', category: 'Filter', stock: 25, price_buy: 35000, price_sell: 55000 },
-    { serial_number: 'FILTER-FUEL-AVZ', name: 'Filter Bensin Toyota Avanza', category: 'Filter', stock: 20, price_buy: 30000, price_sell: 48000 },
-    { serial_number: 'SPARK-NGK-G59', name: 'Busi NGK G-Power G59', category: 'Busi', stock: 60, price_buy: 22000, price_sell: 35000 },
-    { serial_number: 'BRAKE-PAD-F-AVZ', name: 'Kampas Rem Depan Avanza', category: 'Rem', stock: 15, price_buy: 85000, price_sell: 130000 },
-    { serial_number: 'BRAKE-PAD-R-AVZ', name: 'Kampas Rem Belakang Avanza', category: 'Rem', stock: 15, price_buy: 70000, price_sell: 110000 },
-    { serial_number: 'COOLANT-1L-RED', name: 'Coolant Radiator Merah 1 Liter', category: 'Cairan', stock: 35, price_buy: 28000, price_sell: 45000 },
-    { serial_number: 'BATTERY-NS40Z', name: 'Aki Kering NS40Z 35Ah', category: 'Aki', stock: 10, price_buy: 380000, price_sell: 520000 },
+    { serial_number: 'OIL-5W30-1L', name: 'Oli Mesin 5W-30 1 Liter', stock: 50, price_buy: 45000, price_sell: 65000 },
+    { serial_number: 'OIL-10W40-1L', name: 'Oli Mesin 10W-40 1 Liter', stock: 40, price_buy: 40000, price_sell: 58000 },
+    { serial_number: 'FILTER-OIL-AVZ', name: 'Filter Oli Toyota Avanza', stock: 30, price_buy: 25000, price_sell: 40000 },
+    { serial_number: 'FILTER-AIR-AVZ', name: 'Filter Udara Toyota Avanza', stock: 25, price_buy: 35000, price_sell: 55000 },
+    { serial_number: 'FILTER-FUEL-AVZ', name: 'Filter Bensin Toyota Avanza', stock: 20, price_buy: 30000, price_sell: 48000 },
+    { serial_number: 'SPARK-NGK-G59', name: 'Busi NGK G-Power G59', stock: 60, price_buy: 22000, price_sell: 35000 },
+    { serial_number: 'BRAKE-PAD-F-AVZ', name: 'Kampas Rem Depan Avanza', stock: 15, price_buy: 85000, price_sell: 130000 },
+    { serial_number: 'BRAKE-PAD-R-AVZ', name: 'Kampas Rem Belakang Avanza', stock: 15, price_buy: 70000, price_sell: 110000 },
+    { serial_number: 'COOLANT-1L-RED', name: 'Coolant Radiator Merah 1 Liter', stock: 35, price_buy: 28000, price_sell: 45000 },
+    { serial_number: 'BATTERY-NS40Z', name: 'Aki Kering NS40Z 35Ah', stock: 10, price_buy: 380000, price_sell: 520000 },
   ];
 
   for (const data of products) {

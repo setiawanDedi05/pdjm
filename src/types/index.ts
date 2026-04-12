@@ -1,5 +1,5 @@
 export type UserRole = 'admin' | 'kasir' | 'mekanik';
-export type PaymentMethod = 'cash' | 'qris' | 'va';
+export type PaymentMethod = 'cash' | 'qris' | 'va' | 'hutang' | 'transfer';
 export type TransactionStatus = 'pending' | 'paid' | 'cancelled';
 export type StockLogType = 'in' | 'out';
 export type StockLogReason = 'sale' | 'adjustment' | 'purchase';
@@ -16,12 +16,13 @@ export interface Product {
   id: number;
   serial_number: string;
   name: string;
+  description?: string | null;
   stock: number;
   price_buy: number;
   price_sell: number;
-  category: string;
   buy_date?: string | null;
-  buy_from?: string | null;
+  suplier?: string | null;
+  alias_supplier?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -34,12 +35,16 @@ export interface Transaction {
   payment_method: PaymentMethod;
   status: TransactionStatus;
   customer_name: string;
+  toko_name?: string;
+  no_telp?: string;
   vehicle_plate: string;
   user_id: number;
   midtrans_order_id?: string | null;
+  due_date?: Date;
   createdAt: Date;
   updatedAt: Date;
   details?: TransactionDetail[];
+  reference_number?: string | null;
 }
 
 export interface TransactionDetail {
@@ -70,8 +75,11 @@ export interface CartItem {
 }
 
 export interface CheckoutPayload {
-  customer_name: string;
-  vehicle_plate: string;
+  customer_name?: string;
+  vehicle_plate?: string;
+  toko_name?: string;
+  no_telp?: string;
+  due_date?: string;
   payment_method: PaymentMethod;
   status: TransactionStatus;
   midtrans_order_id?: string | null;

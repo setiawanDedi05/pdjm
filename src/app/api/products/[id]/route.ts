@@ -6,12 +6,13 @@ import { apiResponse, apiError, handleApiError } from '@/lib/utils';
 const updateProductSchema = z.object({
   serial_number: z.string().min(1).optional(),
   name: z.string().min(1).optional(),
+  description: z.string().nullable().optional(),
   stock: z.number().int().min(0).optional(),
   price_buy: z.number().min(0).optional(),
   price_sell: z.number().min(0).optional(),
-  category: z.string().min(1).optional(),
   buy_date: z.string().nullable().optional(),
-  buy_from: z.string().nullable().optional(),
+  suplier: z.string().nullable().optional(),
+  alias_supplier: z.string().nullable().optional(),
 });
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {

@@ -5,15 +5,15 @@ import { apiResponse, apiError, handleApiError } from '@/lib/utils';
 import { syncDB } from '@/models';
 
 const checkoutSchema = z.object({
-  customer_name: z.string().min(1, 'Nama customer diperlukan'),
-  vehicle_plate: z.string().min(1, 'Nomor plat diperlukan'),
-  payment_method: z.enum(['cash', 'qris', 'va']),
-  status: z.enum(['paid', 'pending']).default('paid'),
+  customer_name: z.string().optional(),
+  vehicle_plate: z.string().optional(),
+  payment_method: z.enum(['cash', 'qris', 'va', 'hutang', 'transfer']),
+  status: z.enum(['paid', 'pending']).default('pending'),
   midtrans_order_id: z.string().nullable().optional(),
-  // z.coerce.number() handles Sequelize DECIMAL columns, which pg serialises
-  // as strings (e.g. "65000.00") rather than JS numbers.
   total_price: z.coerce.number().min(0),
   service_fee: z.coerce.number().min(0).optional().default(0),
+  toko_name: z.string().optional(),
+  no_telp: z.string().optional(),
   items: z
     .array(
       z.object({
@@ -24,8 +24,12 @@ const checkoutSchema = z.object({
       })
     )
     .min(1, 'Keranjang tidak boleh kosong'),
+  due_date: z.string().optional().refine((date) => {
+    if (!date) return true;
+    const parsedDate = new Date(date);
+    return !isNaN(parsedDate.getTime());
+  }, 'Format tanggal tidak valid'), 
 });
-
 export async function GET(request: Request) {
   try {
     await syncDB();
@@ -39,10 +43,12 @@ export async function GET(request: Request) {
     const page = Number(searchParams.get('page')) || 1;
     const limit = Number(searchParams.get('limit')) || 20;
     const status = searchParams.get('status') || undefined;
+    const metode = searchParams.get('metode') || undefined;
 
-    const result = await getTransactions(page, limit, status);
+    const result = await getTransactions(page, limit, status, metode);
     return apiResponse(result, 'Transaksi berhasil diambil');
   } catch (error) {
+    console.error('Error fetching transactions:', error);
     return handleApiError(error);
   }
 }
@@ -57,6 +63,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const parsed = checkoutSchema.safeParse(body);
     if (!parsed.success) {
+      console.error('Validation error:', parsed.error);
       return apiError(parsed.error.issues[0].message, 400);
     }
     const transaction = await processCheckout(parsed.data, auth.id);

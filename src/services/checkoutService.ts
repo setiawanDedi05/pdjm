@@ -15,7 +15,7 @@ function generateInvoiceNumber(): string {
 }
 
 export async function processCheckout(payload: CheckoutPayload, userId: number) {
-  const { customer_name, vehicle_plate, payment_method, status, midtrans_order_id, items, total_price, service_fee = 0 } = payload;
+  const { customer_name, vehicle_plate, payment_method, status, midtrans_order_id, items, total_price, service_fee = 0, due_date, toko_name, no_telp } = payload;
 
   // Validate items stock before starting transaction
   for (const item of items) {
@@ -55,6 +55,9 @@ export async function processCheckout(payload: CheckoutPayload, userId: number) 
         vehicle_plate,
         user_id: userId,
         midtrans_order_id: midtrans_order_id ?? null,
+        toko_name,
+        due_date,
+        no_telp,
       },
       { transaction: t }
     );
@@ -108,10 +111,11 @@ export async function processCheckout(payload: CheckoutPayload, userId: number) 
   return fullTransaction ? fullTransaction.get({ plain: true }) : null;
 }
 
-export async function getTransactions(page = 1, limit = 20, status?: string) {
+export async function getTransactions(page = 1, limit = 20, status?: string, metode?: string) {
   const offset = (page - 1) * limit;
   const where: Record<string, unknown> = {};
   if (status) where.status = status;
+  if (metode) where.payment_method = metode;
 
   const { count, rows } = await Transaction.findAndCountAll({
     where,

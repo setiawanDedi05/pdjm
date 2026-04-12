@@ -1,7 +1,7 @@
 import { Op } from 'sequelize';
 import { Product } from '@/models';
 
-export async function getAllProducts(search?: string, category?: string) {
+export async function getAllProducts(search?: string) {
   const where: Record<string, unknown> = {};
 
   if (search) {
@@ -9,10 +9,6 @@ export async function getAllProducts(search?: string, category?: string) {
       { name: { [Op.iLike]: `%${search}%` } },
       { serial_number: { [Op.iLike]: `%${search}%` } },
     ];
-  }
-
-  if (category) {
-    where.category = category;
   }
 
   return Product.findAll({
@@ -36,14 +32,15 @@ export async function getProductById(id: number) {
 export async function createProduct(data: {
   serial_number: string;
   name: string;
+  description?: string | null;
   stock: number;
   price_buy: number;
   price_sell: number;
-  category: string;
   buy_date?: string | null;
-  buy_from?: string | null;
+  suplier?: string | null;
+  alias_supplier?: string | null;
 }) {
-  const existing = await Product.findOne({ where: { serial_number: data.serial_number } });
+  const existing = await Product.findOne({ where: { serial_number: data.serial_number, name: data.name } });
   if (existing) throw new Error('Serial number sudah digunakan');
   return Product.create(data);
 }
@@ -53,12 +50,13 @@ export async function updateProduct(
   data: Partial<{
     serial_number: string;
     name: string;
+    description?: string | null;
     stock: number;
     price_buy: number;
     price_sell: number;
-    category: string;
     buy_date: string | null;
-    buy_from: string | null;
+    suplier: string | null;
+    alias_supplier: string | null;
   }>
 ) {
   const product = await getProductById(id);
@@ -74,14 +72,5 @@ export async function deleteProduct(id: number) {
   const product = await getProductById(id);
   await product.destroy();
   return { message: 'Produk berhasil dihapus' };
-}
-
-export async function getCategories() {
-  const products = await Product.findAll({
-    attributes: ['category'],
-    group: ['category'],
-    order: [['category', 'ASC']],
-  });
-  return [...new Set(products.map((p) => p.category))];
 }
 

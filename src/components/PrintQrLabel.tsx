@@ -20,53 +20,37 @@ const PrintQrLabel = forwardRef<HTMLDivElement, PrintQrLabelProps>(
           background: '#fff',
           fontFamily: 'Arial, sans-serif',
           display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '3mm',
         }}
       >
-        {/* Store name */}
-        <div style={{ fontWeight: 'bold', fontSize: '11px', letterSpacing: '0.5px' }}>
-          Pada Jaya Motor
-        </div>
-
-        {/* QR Code */}
         <QRCode
           value={product.serial_number}
-          size={140}
+          size={90}
           bgColor="#ffffff"
           fgColor="#000000"
           level="M"
         />
+        {/* Store name */}
+        <div style={{
+          display:'flex',
+          flexDirection: 'column',
+          marginLeft: '4mm',
+        }}>
+            <div style={{ fontWeight: 'bold', fontSize: '12px' }}>
+              {product.name.length > 20 ? product.name.slice(0, 17) + '...' : product.name}
+            </div>
+            <div style={{ fontWeight: 'bold', fontSize: '9px' }}>
+              {product.description ? (product.description.length > 30 ? product.description.slice(0, 27) + '...' : product.description) : 'No description'}
+            </div>
 
-        {/* Serial number */}
-        <div
-          style={{
-            fontFamily: "'Courier New', Courier, monospace",
-            fontSize: '9px',
-            letterSpacing: '0.5px',
-            textAlign: 'center',
-          }}
-        >
-          {product.serial_number}
-        </div>
-
-        {/* Product name */}
-        <div
-          style={{
-            fontSize: '10px',
-            fontWeight: 'bold',
-            textAlign: 'center',
-            maxWidth: '52mm',
-            wordBreak: 'break-word',
-          }}
-        >
-          {product.name}
-        </div>
-
-        {/* Category */}
-        <div style={{ fontSize: '9px', color: '#555', textAlign: 'center' }}>
-          {product.category}
+            <div
+              style={{
+                fontFamily: "'Courier New', Courier, monospace",
+                fontSize: '9px',
+                letterSpacing: '0.5px',
+              }}
+              >
+              {`${product.alias_supplier}/${product.buy_date ? new Date(product.buy_date).toISOString().slice(0, 10) : 'unknown'}`}
+            </div>
         </div>
       </div>
     );

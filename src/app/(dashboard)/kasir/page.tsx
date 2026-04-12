@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useCartStore } from '@/stores/cartStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -10,12 +10,11 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Minus, Plus, Trash2, ShoppingCart, Printer, QrCode, Banknote, CreditCard } from 'lucide-react';
+import { Minus, Plus, Trash2, ShoppingCart, Printer, Banknote, CreditCard, BanknoteXIcon } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
-import type { Transaction, Product } from '@/types';
-import PrintReceipt from '@/components/PrintReceipt';
-import { useReactToPrint } from 'react-to-print';
+import { Product } from '@/types';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog';
 
 const QrScanner = dynamic(() => import('@/components/QrScanner'), { ssr: false });
 
@@ -25,20 +24,31 @@ export default function KasirPage() {
     items, customerName, vehiclePlate, paymentMethod,
     addItem, removeItem, updateQty, clearCart,
     setCustomerName, setVehiclePlate, setPaymentMethod,
-    totalPrice,
+    totalPrice, noTelp, tokoName, setTokoName, setNoTelp
   } = useCartStore();
 
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [lastTransaction, setLastTransaction] = useState<Transaction | null>(null);
   const [manualSerial, setManualSerial] = useState('');
   const [serviceFee, setServiceFee] = useState(0);
   const printRef = useRef<HTMLDivElement>(null);
 
-  const handlePrint = useReactToPrint({ contentRef: printRef });
+  const [hasMounted, setHasMounted] = useState(false);
+
+  // Modal state for transfer info
+  const [showTransferModal, setShowTransferModal] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+
+  // Jika belum di browser, jangan render apapun (atau render loading)
+  if (!hasMounted) {
+    return null; // atau <div className="p-4">Loading...</div>
+  }
 
   async function scanProduct(serial: string) {
-    console.log({serial})
     if (!serial.trim()) return;
     try {
       const res = await fetch(`/api/products/scan?serial=${encodeURIComponent(serial.trim())}`, {
@@ -63,33 +73,52 @@ export default function KasirPage() {
   }
 
   async function handleCheckout() {
-    if (!customerName.trim() || !vehiclePlate.trim()) {
-      toast.error('Nama customer dan nomor plat wajib diisi');
-      return;
+   let isValid = items.length !== 0;
+    if(paymentMethod === 'hutang'){
+      isValid = debtValidation();
     }
-    if (items.length === 0) {
-      toast.error('Keranjang kosong');
-      return;
-    }
+    if (!isValid) return;
 
     setIsCheckingOut(true);
     try {
-      if (paymentMethod === 'qris' || paymentMethod === 'va') {
-        await handleNonCashPayment();
-      } else {
-        await submitCheckout('paid');
+      switch (paymentMethod) {
+        case 'cash':
+          await submitCheckout('paid');
+          toast.success('Transaksi disimpan sebagai pembayaran tunai');
+          break;
+        case 'hutang':
+          await submitCheckout('pending');
+          toast.success('Transaksi disimpan sebagai hutang');
+          break;
+        case 'transfer':
+          await submitCheckout('paid');
+          break;
       }
     } finally {
       setIsCheckingOut(false);
     }
   }
 
+    const debtValidation = () => {
+    if(customerName.trim() === '' && tokoName?.trim() === ''){
+      toast.error('isi Nama customer atau Nama Toko untuk metode pembayaran Hutang');
+      return false;
+    }
+    if(noTelp?.trim() === ''){
+      toast.error('isi Nomor Telepon untuk metode pembayaran Hutang');
+      return false;
+    }
+    return true
+  }
+
   async function submitCheckout(status?: string, midtransOrderId?: string) {
     const payload = {
       customer_name: customerName,
       vehicle_plate: vehiclePlate,
+      toko_name: tokoName,
+      no_telp: noTelp,
       payment_method: paymentMethod,
-      status: status ?? 'paid',
+      status: status ?? (paymentMethod === 'cash' ? 'paid' : 'pending'),
       midtrans_order_id: midtransOrderId ?? null,
       total_price: totalPrice() + serviceFee,
       service_fee: serviceFee,
@@ -109,20 +138,16 @@ export default function KasirPage() {
     });
     const data = await res.json();
     if (!res.ok || !data.success) throw new Error(data.error || 'Checkout gagal');
-    setLastTransaction(data.data);
     clearCart();
     return data.data;
   }
 
   async function handleSaveTransaction() {
-    if (!customerName.trim() || !vehiclePlate.trim()) {
-      toast.error('Nama customer dan nomor plat wajib diisi');
-      return;
+    let isValid = items.length !== 0;
+    if(paymentMethod === 'hutang'){
+      isValid = debtValidation();
     }
-    if (items.length === 0) {
-      toast.error('Keranjang kosong');
-      return;
-    }
+    if (!isValid) return;
     setIsSaving(true);
     try {
       await submitCheckout('pending');
@@ -131,9 +156,11 @@ export default function KasirPage() {
       toast.error(err instanceof Error ? err.message : 'Gagal menyimpan transaksi');
     } finally {
       setIsSaving(false);
+      setShowTransferModal(false);
     }
   }
 
+  // pembayaran non-cash (transfer) menggunakan Midtrans Snap
   async function handleNonCashPayment() {
     const orderId = `INV-${Date.now()}`;
     const tokenRes = await fetch('/api/midtrans/token', {
@@ -169,6 +196,27 @@ export default function KasirPage() {
 
   return (
     <div className="flex h-screen overflow-y">
+      <Dialog open={showTransferModal} onOpenChange={setShowTransferModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Informasi Transfer</DialogTitle>
+            <DialogDescription>
+              Silakan lakukan transfer ke rekening berikut:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <div><b>Nama Pemilik Kartu:</b> Pada Jaya Motor</div>
+            <div><b>Bank:</b> BCA</div>
+            <div><b>No. Rekening:</b> 0123123123</div>
+          </div>
+          <DialogClose asChild>
+            <>
+            <Button onClick={handleCheckout} className="mt-4 w-full bg-orange-500 outline text-white" variant="secondary">Bayar</Button>
+            <Button className="w-full outline" variant="default">Tutup</Button>
+            </>
+          </DialogClose>
+        </DialogContent>
+      </Dialog>
       {/* LEFT: Scanner + Product List */}
       <div className="flex-1 flex flex-col p-4 gap-4 overflow-auto">
         <div className="flex items-center justify-between">
@@ -243,13 +291,55 @@ export default function KasirPage() {
 
       {/* RIGHT: Customer Info + Payment */}
       <div className="w-80 flex flex-col bg-white border-l border-slate-200 p-4 gap-4">
+        {/* Payment Method */}
         <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">Metode Pembayaran</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-2">
+            <Button
+              variant={paymentMethod !== 'cash' ? 'default' : 'outline'}
+              onClick={() => setPaymentMethod('cash')}
+              className="flex flex-col h-16 gap-1"
+            >
+              <Banknote className="h-5 w-5" />
+              <span className="text-xs">Cash</span>
+            </Button>
+            <Button
+              variant={paymentMethod !== 'transfer' ? 'default' : 'outline'}
+              onClick={() => setPaymentMethod('transfer')}
+              className="flex flex-col h-16 gap-1"
+            >
+              <CreditCard className="h-5 w-5" />
+              <span className="text-xs">Transfer</span>
+            </Button>
+            <Button
+              variant={paymentMethod !== 'hutang' ? 'default' : 'outline'}
+              onClick={() => setPaymentMethod('hutang')}
+              className="flex flex-col h-16 gap-1"
+            >
+              <BanknoteXIcon className="h-5 w-5" />
+              <span className="text-xs">Hutang</span>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card style={{display: paymentMethod !== 'hutang' ? 'none' : 'block'}}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold">Info Customer</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="space-y-1">
-              <Label htmlFor="customer">Nama Customer</Label>
+              <Label htmlFor="toko">Nama Perusahaan/Toko</Label>
+              <Input
+                id="toko"
+                placeholder="Contoh: Toko Budi"
+                value={tokoName}
+                onChange={(e) => setTokoName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="customer">Nama Customer/Penanggung Jawab</Label>
               <Input
                 id="customer"
                 placeholder="Contoh: Budi Santoso"
@@ -266,39 +356,15 @@ export default function KasirPage() {
                 onChange={(e) => setVehiclePlate(e.target.value.toUpperCase())}
               />
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Payment Method */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Metode Pembayaran</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-2">
-            <Button
-              variant={paymentMethod !== 'cash' ? 'default' : 'outline'}
-              onClick={() => setPaymentMethod('cash')}
-              className="flex flex-col h-16 gap-1"
-            >
-              <Banknote className="h-5 w-5" />
-              <span className="text-xs">Cash</span>
-            </Button>
-            <Button
-              variant={paymentMethod !== 'qris' ? 'default' : 'outline'}
-              onClick={() => setPaymentMethod('qris')}
-              className="flex flex-col h-16 gap-1"
-            >
-              <QrCode className="h-5 w-5" />
-              <span className="text-xs">Qris</span>
-            </Button>
-            <Button
-              variant={paymentMethod !== 'va' ? 'default' : 'outline'}
-              onClick={() => setPaymentMethod('va')}
-              className="flex flex-col h-16 gap-1"
-            >
-              <CreditCard className="h-5 w-5" />
-              <span className="text-xs">Virtual Account</span>
-            </Button>
+            <div className="space-y-1">
+              <Label htmlFor="notelp">Nomor Telepon</Label>
+              <Input
+                id="notelp"
+                placeholder="Contoh: 081234567890"
+                value={noTelp}
+                onChange={(e) => setNoTelp(e.target.value.toUpperCase())}
+              />
+            </div>
           </CardContent>
         </Card>
 
@@ -353,50 +419,28 @@ export default function KasirPage() {
         <div className="space-y-2">
           <Button
             className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold h-12"
-            onClick={handleCheckout}
+            onClick={paymentMethod === 'transfer' ? () => setShowTransferModal(true) : handleCheckout}
             disabled={isCheckingOut || isSaving || items.length === 0}
           >
             {isCheckingOut
               ? 'Memproses...'
-              : paymentMethod === 'qris'
-              ? 'Bayar dengan QRIS'
               : `Bayar ${formatCurrency(total)}`}
           </Button>
-          {paymentMethod === 'cash' && items.length > 0 && (
-            <Button
-              variant="outline"
-              className="w-full border-slate-400 text-slate-700"
-              onClick={handleSaveTransaction}
-              disabled={isSaving || isCheckingOut}
-            >
-              {isSaving ? 'Menyimpan...' : 'Simpan Transaksi'}
-            </Button>
-          )}
-          {lastTransaction && (
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => handlePrint()}
-            >
-              <Printer className="h-4 w-4 mr-2" />
-              Cetak Struk
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            className="w-full border-slate-400 text-slate-700"
+            onClick={handleSaveTransaction}
+            disabled={isSaving || isCheckingOut}
+          >
+            {isSaving ? 'Menyimpan...' : 'Simpan Transaksi'}
+          </Button>
           {items.length > 0 && (
             <Button variant="ghost" className="w-full text-red-500" onClick={clearCart}>
               Kosongkan Keranjang
             </Button>
           )}
         </div>
-      </div>
-
-      {/* Hidden Print Area */}
-      {lastTransaction && (
-        <div className="hidden">
-          <PrintReceipt ref={printRef} transaction={lastTransaction} />
-        </div>
-      )}
+      </div> 
     </div>
   );
 }
-

@@ -2,13 +2,16 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { CartItem, Product } from '@/types';
+import type { CartItem, PaymentMethod, Product } from '@/types';
 
 interface CartState {
   items: CartItem[];
   customerName: string;
   vehiclePlate: string;
-  paymentMethod: 'cash' | 'qris' | 'va';
+  tokoName: string;
+  noTelp: string;
+  paymentMethod: PaymentMethod;
+
 
   // Actions
   addItem: (product: Product, qty?: number) => void;
@@ -17,7 +20,9 @@ interface CartState {
   clearCart: () => void;
   setCustomerName: (name: string) => void;
   setVehiclePlate: (plate: string) => void;
-  setPaymentMethod: (method: 'cash' | 'qris' | 'va') => void;
+  setTokoName: (name: string) => void;
+  setNoTelp: (noTelp: string) => void;
+  setPaymentMethod: (method: PaymentMethod) => void;
 
   // Computed
   totalItems: () => number;
@@ -30,6 +35,8 @@ export const useCartStore = create<CartState>()(
       items: [],
       customerName: '',
       vehiclePlate: '',
+      tokoName: '',
+      noTelp: '',
       paymentMethod: 'cash',
 
       addItem: (product: Product, qty = 1) => {
@@ -88,7 +95,9 @@ export const useCartStore = create<CartState>()(
 
       setCustomerName: (name: string) => set({ customerName: name }),
       setVehiclePlate: (plate: string) => set({ vehiclePlate: plate }),
-      setPaymentMethod: (method: 'cash' | 'qris' | 'va') => set({ paymentMethod: method }),
+      setTokoName: (name: string) => set({ tokoName: name }),
+      setNoTelp: (noTelp: string) => set({ noTelp }),
+      setPaymentMethod: (method: PaymentMethod) => set({ paymentMethod: method }),
 
       totalItems: () => get().items.reduce((sum, i) => sum + i.qty, 0),
       totalPrice: () => get().items.reduce((sum, i) => sum + i.subtotal, 0),

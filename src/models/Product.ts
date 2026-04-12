@@ -5,15 +5,17 @@ interface ProductAttributes {
   id: number;
   serial_number: string;
   name: string;
+  description?: string | null;
   stock: number;
+  minimum_stock?: number;
   price_buy: number;
   price_sell: number;
-  category: string;
   buy_date: Date | string | null;
-  buy_from: string | null;
+  suplier: string | null;
+  alias_supplier: string | null;
 }
 
-interface ProductCreationAttributes extends Optional<ProductAttributes, 'id' | 'buy_date' | 'buy_from'> {}
+interface ProductCreationAttributes extends Optional<ProductAttributes, 'id'> {}
 
 class Product
   extends Model<ProductAttributes, ProductCreationAttributes>
@@ -22,12 +24,15 @@ class Product
   declare id: number;
   declare serial_number: string;
   declare name: string;
+  declare description?: string | null;
   declare stock: number;
+  declare minimum_stock?: number;
   declare price_buy: number;
   declare price_sell: number;
-  declare category: string;
   declare buy_date: Date | string | null;
-  declare buy_from: string | null;
+  declare suplier: string | null;
+  declare alias_supplier: string | null;
+  
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 }
@@ -54,12 +59,25 @@ Product.init(
         notEmpty: true,
       },
     },
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      defaultValue: null,
+    },
     stock: {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0,
       validate: {
         min: 0,
+      },
+    },
+    minimum_stock: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: 5,
+      validate: {
+        min: 1,
       },
     },
     price_buy: {
@@ -78,17 +96,17 @@ Product.init(
         min: 0,
       },
     },
-    category: {
-      type: DataTypes.STRING(100),
-      allowNull: false,
-      defaultValue: 'Umum',
-    },
     buy_date: {
       type: DataTypes.DATE,
       allowNull: true,
       defaultValue: null,
     },
-    buy_from: {
+    suplier: {
+      type: DataTypes.STRING(200),
+      allowNull: true,
+      defaultValue: null,
+    },
+    alias_supplier: {
       type: DataTypes.STRING(200),
       allowNull: true,
       defaultValue: null,
@@ -99,7 +117,6 @@ Product.init(
     tableName: 'products',
     indexes: [
       { unique: true, fields: ['serial_number'] },
-      { fields: ['category'] },
       { fields: ['name'] },
     ],
   }

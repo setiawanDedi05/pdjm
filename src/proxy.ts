@@ -43,8 +43,8 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/kasir', request.url));
   }
 
-  // ── RBAC: only admin may access /admin/reports ───────────────────────────
-  if (token && pathname.startsWith('/admin/reports')) {
+  // ── RBAC: only admin may access /reports ───────────────────────────
+  if (token && pathname.startsWith('/reports')) {
     const payload = decodeTokenPayload(token);
     if (!payload || payload.role !== 'admin') {
       return NextResponse.redirect(new URL('/kasir', request.url));
