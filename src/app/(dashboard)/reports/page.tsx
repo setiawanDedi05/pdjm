@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { BarChart3, TrendingUp, ShoppingCart, Package } from 'lucide-react';
+import { BarChart3, TrendingUp, ShoppingCart, Package, AlertTriangle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { Transaction } from '@/types';
@@ -17,53 +18,64 @@ interface ReportSummary {
 }
 
 export default function ReportsPage() {
+  const router = useRouter();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [period, setPeriod] = useState('month');
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<ReportSummary>({
     totalRevenue: 0, totalTransactions: 0, totalItemsSold: 0, avgTransaction: 0,
   });
+  const [hutangSummary, setHutangSummary] = useState({ count: 0, total: 0 });
 
   const fetchReport = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/transactions?status=paid&limit=100', { credentials: 'include' });
+      // Fetch all transactions (not just paid)
+      const res = await fetch('/api/transactions?limit=200', { credentials: 'include' });
       const data = await res.json();
       if (!data.success) return;
 
       const all: Transaction[] = data.data.transactions ?? [];
       const now = new Date();
+      // Filter for summary cards (paid only)
       const filtered = all.filter((t) => {
         const date = new Date(t.createdAt);
         if (period === 'day') {
-          return date.toDateString() === now.toDateString();
+          return t.status === 'paid' && date.toDateString() === now.toDateString();
         }
         if (period === 'week') {
           const weekAgo = new Date(now);
           weekAgo.setDate(weekAgo.getDate() - 7);
-          return date >= weekAgo;
+          return t.status === 'paid' && date >= weekAgo;
         }
         if (period === 'month') {
-          return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+          return t.status === 'paid' && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
         }
-        return true;
+        return t.status === 'paid';
       });
 
-      
       setTransactions(filtered);
-      const totalRevenue = filtered.reduce((s, t) => {
-        const result = Number(s) + Number(t.total_price)
-        return result
-      }, 0);
+      const totalRevenue = filtered.reduce((s, t) => Number(s) + Number(t.total_price), 0);
       const totalItemsSold = filtered.reduce(
         (s, t) => s + (t.details?.reduce((si, d) => si + d.qty, 0) ?? 0), 0
       );
-      console.log({filtered, totalRevenue})
       setSummary({
         totalRevenue,
         totalTransactions: filtered.length,
         totalItemsSold,
         avgTransaction: filtered.length > 0 ? totalRevenue / filtered.length : 0,
+      });
+
+      // Hutang summary: payment_method === 'hutang', status === 'pending', due date within 10 days
+      const hutang = all.filter((t) => {
+        if (t.payment_method !== 'hutang' || t.status !== 'pending' || !t.due_date) return false;
+        const due = new Date(t.due_date);
+        const diff = (due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+        return diff >= 0 && diff <= 10;
+      });
+      setHutangSummary({
+        count: hutang.length,
+        total: hutang.reduce((s, t) => Number(s) + Number(t.total_price), 0),
       });
     } catch {
       toast.error('Gagal memuat laporan');
@@ -117,6 +129,24 @@ export default function ReportsPage() {
             </CardContent>
           </Card>
         ))}
+        {/* Hutang summary card - clickable */}
+        <Card
+          className="col-span-2 lg:col-span-1 border-orange-400 cursor-pointer hover:shadow-lg transition"
+          onClick={() => router.push('/hutang?due=10&status=pending')}
+          tabIndex={0}
+          role="button"
+          aria-label="Lihat hutang jatuh tempo 10 hari"
+        >
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-xs font-medium text-orange-700 flex items-center gap-1">
+              <AlertTriangle className="h-4 w-4 text-orange-500" /> Hutang Jatuh Tempo ≤ 10 Hari
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-bold text-orange-600">{loading ? '—' : `${hutangSummary.count} transaksi`}</div>
+            <div className="text-xs text-slate-400 mt-0.5">Total: {loading ? '—' : formatCurrency(hutangSummary.total)}</div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Transaction List */}
