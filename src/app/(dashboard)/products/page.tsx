@@ -18,7 +18,18 @@ import { useReactToPrint } from 'react-to-print';
 import QRCode from 'react-qr-code';
 import PrintQrLabel from '@/components/PrintQrLabel';
 
-const emptyForm = { serial_number: '', name: '', description: '', stock: 0, price_buy: 0, price_sell: 0, buy_date: new Date().toISOString().slice(0, 10), suplier: '', alias_supplier: '' };
+const emptyForm = {
+  serial_number: '',
+  name: '',
+  description: '',
+  stock: 0,
+  minimum_stock: 0,
+  price_buy: 0,
+  price_sell: 0,
+  buy_date: new Date().toISOString().slice(0, 10),
+  suplier: '',
+  alias_supplier: '',
+};
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -101,7 +112,6 @@ export default function ProductsPage() {
       }
     };
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -117,7 +127,6 @@ export default function ProductsPage() {
   }
 
   const fetchProducts = useCallback(async () => {
-    setLoading(true);
     try {
       const q = `?page=${page}&pageSize=${pageSize}&search=${encodeURIComponent(search)}`;
       const res = await fetch(`/api/products${q}`, { credentials: 'include' });
@@ -129,7 +138,6 @@ export default function ProductsPage() {
     } catch {
       toast.error('Gagal memuat produk');
     } finally {
-      setLoading(false);
       setPendingPage(null);
     }
   }, [search, page, pageSize]);
@@ -140,10 +148,23 @@ export default function ProductsPage() {
   }, [fetchProducts]);
 
   useEffect(() => {
-    setForm({
-      ...emptyForm,
-      serial_number: editProduct ? editProduct.serial_number : generateShortId(),
-    });
+    console.log({editProduct});
+    setForm(
+      editProduct
+        ? {
+            serial_number: editProduct.serial_number ?? '',
+            name: editProduct.name ?? '',
+            description: editProduct.description ?? '',
+            stock: editProduct.stock ?? 0,
+            minimum_stock: editProduct.minimum_stock ?? 0,
+            price_buy: editProduct.price_buy ?? 0,
+            price_sell: editProduct.price_sell ?? 0,
+            buy_date: editProduct.buy_date?.split('T')[0] ?? new Date().toISOString().slice(0, 10),
+            suplier: editProduct.suplier ?? '',
+            alias_supplier: editProduct.alias_supplier ?? '',
+          }
+        : { ...emptyForm, serial_number: generateShortId() }
+    );
   }, [dialogOpen]);
 
   function openCreate() {
@@ -154,17 +175,6 @@ export default function ProductsPage() {
 
   function openEdit(p: Product) {
     setEditProduct(p);
-    setForm({
-      serial_number: p.serial_number,
-      name: p.name,
-      description: p.description ?? '',
-      stock: p.stock,
-      price_buy: p.price_buy,
-      price_sell: p.price_sell,
-      buy_date: p.buy_date ? p.buy_date.toString().slice(0, 10) : '',
-      suplier: p.suplier ?? '',
-      alias_supplier: p.alias_supplier ?? '',
-    });
     setDialogOpen(true);
   }
 
@@ -180,7 +190,7 @@ export default function ProductsPage() {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, serial_number: editProduct ? editProduct.serial_number : form.serial_number, stock: Number(form.stock), price_buy: Number(form.price_buy), price_sell: Number(form.price_sell) }),
+        body: JSON.stringify({ ...form, serial_number: editProduct ? editProduct.serial_number : form.serial_number, stock: Number(form.stock), minimum_stock: Number(form.minimum_stock), price_buy: Number(form.price_buy), price_sell: Number(form.price_sell) }),
         credentials: 'include',
       });
       const data = await res.json();
@@ -258,10 +268,11 @@ export default function ProductsPage() {
           <div className="relative">
             <ReusableTable<Product>
               columns={[
-                { key: 'serial_number', header: 'Serial', render: (p) => p.alias_supplier ? `${p.alias_supplier}-${p.serial_number}` : p.serial_number, className: 'font-mono text-xs' },
+                { key: 'serial_number', header: 'Serial', render: (p) => p.alias_supplier ? `${p.alias_supplier}-${p.serial_number.toUpperCase()}` : p.serial_number, className: 'font-mono text-xs' },
                 { key: 'name', header: 'Nama', className: 'font-medium' },
                 { key: 'description', header: 'Description', render: (p) => p.description ?? '-', className: 'font-medium' },
-                { key: 'stock', header: 'Stok', render: (p) => <span className={p.stock <= 5 ? 'text-red-600 font-bold' : ''}>{p.stock}</span>, className: 'text-right' },
+                { key: 'stock', header: 'Stok', render: (p) => <span className={p.stock <= p.minimum_stock ? 'text-red-600 font-bold' : ''}>{p.stock}</span>, className: 'text-right' },
+                { key: 'minimum_stock', header: 'Stok Minimum', render: (p) => <span>{p.minimum_stock}</span>, className: 'text-right' },
                 { key: 'price_buy', header: 'Harga Beli', render: (p) => formatCurrency(p.price_buy), className: 'text-right' },
                 { key: 'price_sell', header: 'Harga Jual', render: (p) => formatCurrency(p.price_sell), className: 'text-right' },
                 { key: 'actions', header: 'Aksi', render: (p) => (
@@ -283,11 +294,6 @@ export default function ProductsPage() {
               emptyText={<><Package className="h-12 w-12 mx-auto mb-2 text-slate-300" /><p className="text-slate-400">Tidak ada produk</p></>}
               rowKey={(row) => row.id}
             />
-            {loading && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-10">
-                <span className="text-orange-500 font-semibold animate-pulse">Memuat...</span>
-              </div>
-            )}
           </div>
         </CardContent>
       </Card>
@@ -328,7 +334,7 @@ export default function ProductsPage() {
           <div className="grid grid-cols-2 gap-3 py-2">
             <div className="col-span-2 space-y-1">
               <Label>Serial Number</Label>
-              <Input value={form.serial_number} onChange={(e) => setForm({ ...form, serial_number: e.target.value })} placeholder="Serial number produk" />
+              <Input value={form.serial_number} onChange={(e) => setForm({ ...form, serial_number: e.target.value.toUpperCase() })} placeholder="Serial number produk" />
             </div>
             <div className="col-span-2 space-y-1">
               <Label>Nama Produk</Label>
@@ -341,6 +347,10 @@ export default function ProductsPage() {
             <div className="space-y-1">
               <Label>Stok</Label>
               <Input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: Number(e.target.value) })} min={0} />
+            </div>
+            <div className="space-y-1">
+              <Label>Stok Minimum</Label>
+              <Input type="number" value={form.minimum_stock} onChange={(e) => setForm({ ...form, minimum_stock: Number(e.target.value) })} min={0} />
             </div>
             <div className="space-y-1">
               <Label>Harga Beli (Rp)</Label>

@@ -173,9 +173,7 @@ export default function TransactionsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? (
-                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-slate-400">Memuat...</TableCell></TableRow>
-                ) : transactions.length === 0 ? (
+                {transactions.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-12">
                       <ListOrdered className="h-12 w-12 mx-auto mb-2 text-slate-300" />
@@ -206,11 +204,6 @@ export default function TransactionsPage() {
                 )}
               </TableBody>
             </Table>
-            {loading && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-10">
-                <span className="text-orange-500 font-semibold animate-pulse">Memuat...</span>
-              </div>
-            )}
           </div>
         </CardContent>
       </Card>

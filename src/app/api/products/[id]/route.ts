@@ -8,6 +8,7 @@ const updateProductSchema = z.object({
   name: z.string().min(1).optional(),
   description: z.string().nullable().optional(),
   stock: z.number().int().min(0).optional(),
+  minimum_stock: z.number().int().min(0).optional(),
   price_buy: z.number().min(0).optional(),
   price_sell: z.number().min(0).optional(),
   buy_date: z.string().nullable().optional(),

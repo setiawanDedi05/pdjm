@@ -12,7 +12,6 @@ import { toast } from 'sonner';
 
 function LoginForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { login, isLoading } = useAuthStore();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -34,7 +33,7 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-400 to-slate-700 p-4">
 
       <div className="w-full max-w-md">
         {/* Logo */}
@@ -46,11 +45,11 @@ function LoginForm() {
           <p className="text-slate-400 mt-1">Kp. Pacet Beunying RT/RW. 01/07, Pacet, Cianjur</p>
         </div>
 
-        <Card className="shadow-2xl border-0">
+        <Card className="shadow-2xl border-0 bg-slate-900 py-12">
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="username" className='text-white'>Username</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -66,7 +65,7 @@ function LoginForm() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className='text-white'>Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input

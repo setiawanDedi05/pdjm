@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { RevenueLineChart, ProductSaleBarChart, ProductInBarChart } from '@/components/ui/Charts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { BarChart3, TrendingUp, ShoppingCart, Package, AlertTriangle } from 'lucide-react';
+import { BarChart3, TrendingUp, ShoppingCart, Package, AlertTriangle, LoaderIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -18,14 +19,29 @@ interface ReportSummary {
 }
 
 export default function ReportsPage() {
-  const router = useRouter();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [period, setPeriod] = useState('month');
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<ReportSummary>({
     totalRevenue: 0, totalTransactions: 0, totalItemsSold: 0, avgTransaction: 0,
   });
-  const [hutangSummary, setHutangSummary] = useState({ count: 0, total: 0 });
+  const [chartPeriod, setChartPeriod] = useState<'day' | 'month' | 'year'>('day');
+  const [revenueData, setRevenueData] = useState<any[]>([]);
+  const [productSaleData, setProductSaleData] = useState<any[]>([]);
+  const [productInData, setProductInData] = useState<any[]>([]);
+  const [chartLoading, setChartLoading] = useState(false);
+  // Fetch chart data
+  useEffect(() => {
+    setChartLoading(true);
+    Promise.all([
+      fetch(`/api/reports/summary?period=${chartPeriod}`).then(r => r.json()),
+      fetch(`/api/reports/product-sale?period=${chartPeriod}`).then(r => r.json()),
+      fetch(`/api/reports/product-in?period=${chartPeriod}`).then(r => r.json()),
+    ]).then(([rev, sale, prodIn]) => {
+      setRevenueData(rev.data ?? []);
+      setProductSaleData(sale.data ?? []);
+      setProductInData(prodIn.data ?? []);
+    }).finally(() => setChartLoading(false));
+  }, [chartPeriod]);
 
   const fetchReport = useCallback(async () => {
     setLoading(true);
@@ -51,10 +67,12 @@ export default function ReportsPage() {
         if (period === 'month') {
           return t.status === 'paid' && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
         }
+        if (period === 'year') {
+          return t.status === 'paid' && date.getFullYear() === now.getFullYear();
+        }
         return t.status === 'paid';
       });
 
-      setTransactions(filtered);
       const totalRevenue = filtered.reduce((s, t) => Number(s) + Number(t.total_price), 0);
       const totalItemsSold = filtered.reduce(
         (s, t) => s + (t.details?.reduce((si, d) => si + d.qty, 0) ?? 0), 0
@@ -72,10 +90,6 @@ export default function ReportsPage() {
         const due = new Date(t.due_date);
         const diff = (due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
         return diff >= 0 && diff <= 10;
-      });
-      setHutangSummary({
-        count: hutang.length,
-        total: hutang.reduce((s, t) => Number(s) + Number(t.total_price), 0),
       });
     } catch {
       toast.error('Gagal memuat laporan');
@@ -97,22 +111,24 @@ export default function ReportsPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-2">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Laporan Penjualan</h1>
           <p className="text-sm text-slate-500">Ringkasan pendapatan dan transaksi</p>
         </div>
-        <Select value={period} onValueChange={setPeriod}>
-          <SelectTrigger className="w-44">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="day">Hari Ini</SelectItem>
-            <SelectItem value="week">7 Hari Terakhir</SelectItem>
-            <SelectItem value="month">Bulan Ini</SelectItem>
-            <SelectItem value="all">Semua Waktu</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex flex-col md:flex-row gap-2 items-end">
+          <Select value={period} onValueChange={setPeriod}>
+            <SelectTrigger className="w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className='bg-white'>
+              <SelectItem value="day">Hari Ini</SelectItem>
+              <SelectItem value="week">7 Hari Terakhir</SelectItem>
+              <SelectItem value="month">Bulan Ini</SelectItem>
+              <SelectItem value="year">Tahun Ini</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -129,64 +145,53 @@ export default function ReportsPage() {
             </CardContent>
           </Card>
         ))}
-        {/* Hutang summary card - clickable */}
-        <Card
-          className="col-span-2 lg:col-span-1 border-orange-400 cursor-pointer hover:shadow-lg transition"
-          onClick={() => router.push('/hutang?due=10&status=pending')}
-          tabIndex={0}
-          role="button"
-          aria-label="Lihat hutang jatuh tempo 10 hari"
-        >
-          <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-xs font-medium text-orange-700 flex items-center gap-1">
-              <AlertTriangle className="h-4 w-4 text-orange-500" /> Hutang Jatuh Tempo ≤ 10 Hari
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold text-orange-600">{loading ? '—' : `${hutangSummary.count} transaksi`}</div>
-            <div className="text-xs text-slate-400 mt-0.5">Total: {loading ? '—' : formatCurrency(hutangSummary.total)}</div>
-          </CardContent>
-        </Card>
       </div>
 
-      {/* Transaction List */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-semibold">
-            Transaksi Terbayar — {periodLabel[period]}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Invoice</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Plat</TableHead>
-                <TableHead>Metode</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-400">Memuat...</TableCell></TableRow>
-              ) : transactions.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-400">Tidak ada transaksi pada periode ini</TableCell></TableRow>
-              ) : (
-                transactions.map((t) => (
-                  <TableRow key={t.id}>
-                    <TableCell className="font-mono text-xs">{t.invoice_number}</TableCell>
-                    <TableCell className="font-medium">{t.customer_name}</TableCell>
-                    <TableCell>{t.vehicle_plate}</TableCell>
-                    <TableCell className="uppercase text-xs">{t.payment_method}</TableCell>
-                    <TableCell className="text-right font-semibold">{formatCurrency(t.total_price)}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {/* Grafik Section */}
+      <div className="bg-white rounded-lg shadow p-12 mb-6">
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800">Grafik Penjualan & History Produk</h1>
+            <p className="text-sm text-slate-500">Ringkasan pendapatan dan produk</p>
+          </div>
+          <Select value={chartPeriod} onValueChange={v => setChartPeriod(v as any)}>
+            <SelectTrigger className="w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className='bg-white'>
+              <SelectItem value="day">Harian</SelectItem>
+              <SelectItem value="month">Bulanan</SelectItem>
+              <SelectItem value="year">Tahunan</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            {chartLoading ? (
+              <div className="w-full h-72 flex items-center justify-center">
+                <LoaderIcon className="animate-spin text-muted-foreground" />
+              </div>
+            ) : 
+            <RevenueLineChart data={revenueData} title="Pendapatan" />
+            }
+          </div>
+          <div>
+             {chartLoading ? (
+              <div className="w-full h-72 flex items-center justify-center">
+                <LoaderIcon className="animate-spin text-muted-foreground" />
+              </div>
+            ) : <ProductSaleBarChart data={productSaleData} title="Produk Terjual" />}
+          </div>
+          <div>
+             {chartLoading ? (
+              <div className="w-full h-72 flex items-center justify-center">
+                <LoaderIcon className="animate-spin text-muted-foreground" />
+              </div>
+            ) : 
+            <ProductInBarChart data={productInData} title="Produk Masuk" />}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

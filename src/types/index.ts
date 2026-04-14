@@ -18,6 +18,7 @@ export interface Product {
   name: string;
   description?: string | null;
   stock: number;
+  minimum_stock: number;
   price_buy: number;
   price_sell: number;
   buy_date?: string | null;

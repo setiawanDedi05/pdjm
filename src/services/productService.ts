@@ -82,3 +82,12 @@ export async function deleteProduct(id: number) {
   return { message: 'Produk berhasil dihapus' };
 }
 
+export async function getLowStockProducts() {
+  return Product.findAndCountAll({
+    where: {
+      stock: { [Op.lte]: { [Op.col]: 'minimum_stock' } },
+    },
+    order: [['stock', 'ASC']],
+  });
+}
+

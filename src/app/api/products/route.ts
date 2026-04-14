@@ -9,6 +9,7 @@ const createProductSchema = z.object({
   name: z.string().min(1, 'Nama produk diperlukan'),
   description: z.string().nullable().optional(),
   stock: z.number().int().min(0, 'Stok tidak boleh negatif'),
+  minimum_stock: z.number().int().min(0, 'Stok minimum tidak boleh negatif'),
   price_buy: z.number().min(0, 'Harga beli tidak valid'),
   price_sell: z.number().min(0, 'Harga jual tidak valid'),
   buy_date: z.string().nullable().optional(),

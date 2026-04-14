@@ -1,6 +1,7 @@
 
 import { sequelize, Transaction, TransactionDetail, Product, StockLog } from '@/models';
 import type { CheckoutPayload, TransactionStatus } from '@/types';
+import { Op } from 'sequelize';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set');
@@ -166,5 +167,21 @@ export async function updateTransactionStatus(id: number, status: TransactionSta
   });
 
   return trx;
+}
+
+export async function getPendingHutangTransactions() {
+  const now = new Date();
+  const tenDaysLater = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000);
+  return Transaction.findAndCountAll({
+    where: {
+      payment_method: 'hutang',
+      status: 'pending',
+      due_date: {
+        [Op.lte]: tenDaysLater,
+        [Op.gte]: now,
+      },
+    },
+    order: [['due_date', 'ASC']],
+  });
 }
 

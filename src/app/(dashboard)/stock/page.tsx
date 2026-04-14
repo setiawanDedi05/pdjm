@@ -57,7 +57,7 @@ export default function StockPage() {
             ? prodsData.data.items
             : [];
         setProducts(prods);
-        setLowStock(prods.filter((p) => p.stock <= 5));
+        setLowStock(prods.filter((p) => p.stock <= p.minimum_stock));
       }
     } catch {
       toast.error('Gagal memuat data');
@@ -142,9 +142,7 @@ export default function StockPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-400">Memuat...</TableCell></TableRow>
-                ) : logs.length === 0 ? (
+                {logs.length === 0 ? (
                   <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-400">Belum ada riwayat stok</TableCell></TableRow>
                 ) : (
                   logs.map((log) => (
@@ -165,11 +163,6 @@ export default function StockPage() {
                 )}
               </TableBody>
             </Table>
-            {loading && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-10">
-                <span className="text-orange-500 font-semibold animate-pulse">Memuat...</span>
-              </div>
-            )}
           </div>
         </CardContent>
       </Card>

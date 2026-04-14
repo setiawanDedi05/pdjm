@@ -23,10 +23,14 @@ function decodeTokenPayload(token: string): AuthPayload | null {
 export function proxy(request: NextRequest) {
   const token = request.cookies.get('auth_token')?.value;
   const { pathname } = request.nextUrl;
+  const requestHeaders = new Headers(request.headers);
 
   const isAuthPage = pathname.startsWith('/login');
   const isApiRoute = pathname.startsWith('/api');
   const isPublicApiRoute = pathname.startsWith('/api/auth');
+
+  // Set the current pathname into a custom header
+  requestHeaders.set('x-url', pathname);
 
   // Allow API auth routes (login / logout / me)
   if (isPublicApiRoute) return NextResponse.next();
@@ -51,7 +55,11 @@ export function proxy(request: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    }
+  });
 }
 
 export const config = {
