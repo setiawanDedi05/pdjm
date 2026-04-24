@@ -20,7 +20,11 @@ const sequelize = new Sequelize(DATABASE_URL, {
       process.env.NODE_ENV === 'production'
         ? { require: true, rejectUnauthorized: false }
         : false,
+    useUTC: false, // Berhenti mengonversi ke UTC
+    dateStrings: true,
+    typeCast: true
   },
+  timezone: '+07:00', // Sesuaikan dengan timezone Anda (WIB)
 });
 
 export default sequelize;

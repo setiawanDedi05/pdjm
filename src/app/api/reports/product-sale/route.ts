@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     `SELECT TO_CHAR(t."createdAt", '${dateFormat}') as label, SUM(td.qty)::int as sold
      FROM transactions t
      JOIN transaction_details td ON td.transaction_id = t.id
-     WHERE t.status = 'paid'
+     WHERE t.status = 'paid' AND td.product_id IS NOT NULL
      GROUP BY label
      ORDER BY label ASC`,
     { type: 'SELECT' }

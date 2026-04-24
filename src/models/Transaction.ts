@@ -6,7 +6,6 @@ interface TransactionAttributes {
   id: number;
   invoice_number: string;
   total_price: number;
-  service_fee: number;
   payment_method: PaymentMethod;
   status: TransactionStatus;
   customer_name?: string;
@@ -20,7 +19,7 @@ interface TransactionAttributes {
   updatedAt?: Date;
 }
 
-interface TransactionCreationAttributes extends Optional<TransactionAttributes, 'id' | 'midtrans_order_id' | 'service_fee'> {}
+interface TransactionCreationAttributes extends Optional<TransactionAttributes, 'id' | 'midtrans_order_id'> {}
 
 class Transaction
   extends Model<TransactionAttributes, TransactionCreationAttributes>
@@ -29,7 +28,6 @@ class Transaction
   declare id: number;
   declare invoice_number: string;
   declare total_price: number;
-  declare service_fee: number;
   declare payment_method: PaymentMethod;
   declare status: TransactionStatus;
   declare customer_name: string;
@@ -56,11 +54,6 @@ Transaction.init(
       unique: true,
     },
     total_price: {
-      type: DataTypes.DECIMAL(12, 2),
-      allowNull: false,
-      defaultValue: 0,
-    },
-    service_fee: {
       type: DataTypes.DECIMAL(12, 2),
       allowNull: false,
       defaultValue: 0,

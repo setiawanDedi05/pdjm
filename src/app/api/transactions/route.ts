@@ -11,7 +11,12 @@ const checkoutSchema = z.object({
   status: z.enum(['paid', 'pending']).default('pending'),
   midtrans_order_id: z.string().nullable().optional(),
   total_price: z.coerce.number().min(0),
-  service_fee: z.coerce.number().min(0).optional().default(0),
+  service_fees: z.array(
+    z.object({
+      service_name: z.string().min(2).max(100),  // STRING — always a JS string
+      service_price: z.coerce.number().min(0),          // DECIMAL — arrives as string
+    })
+  ).optional(),
   toko_name: z.string().optional(),
   no_telp: z.string().optional(),
   items: z
@@ -61,6 +66,7 @@ export async function POST(request: Request) {
     if (!['admin', 'kasir'].includes(auth.role)) return apiError('Forbidden', 403);
 
     const body = await request.json();
+    console.log('Received checkout payload:', body);
     const parsed = checkoutSchema.safeParse(body);
     if (!parsed.success) {
       console.error('Validation error:', parsed.error);

@@ -4,9 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { RevenueLineChart, ProductSaleBarChart, ProductInBarChart } from '@/components/ui/Charts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { BarChart3, TrendingUp, ShoppingCart, Package, AlertTriangle, LoaderIcon } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { BarChart3, TrendingUp, ShoppingCart, Package, LoaderIcon } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { Transaction } from '@/types';
@@ -47,7 +45,7 @@ export default function ReportsPage() {
     setLoading(true);
     try {
       // Fetch all transactions (not just paid)
-      const res = await fetch('/api/transactions?limit=200', { credentials: 'include' });
+      const res = await fetch('/api/transactions', { credentials: 'include' });
       const data = await res.json();
       if (!data.success) return;
 
@@ -75,7 +73,7 @@ export default function ReportsPage() {
 
       const totalRevenue = filtered.reduce((s, t) => Number(s) + Number(t.total_price), 0);
       const totalItemsSold = filtered.reduce(
-        (s, t) => s + (t.details?.reduce((si, d) => si + d.qty, 0) ?? 0), 0
+        (s, t) => s + (t.details?.reduce((si, d) => si + (d.product_id ? d.qty : 0), 0) ?? 0), 0
       );
       setSummary({
         totalRevenue,

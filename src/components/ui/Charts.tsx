@@ -19,6 +19,7 @@ export function RevenueLineChart({ data, title }: { data: any[], title?: string 
 }
 
 export function ProductSaleBarChart({ data, title }: { data: any[], title?: string }) {
+  console.log('ProductSaleBarChart data:', data);
   return (
     <div className="w-full h-72">
       {title && <div className="font-semibold mb-2">{title}</div>}

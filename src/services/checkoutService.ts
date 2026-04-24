@@ -16,7 +16,7 @@ function generateInvoiceNumber(): string {
 }
 
 export async function processCheckout(payload: CheckoutPayload, userId: number) {
-  const { customer_name, vehicle_plate, payment_method, status, midtrans_order_id, items, total_price, service_fee = 0, due_date, toko_name, no_telp } = payload;
+  const { customer_name, vehicle_plate, payment_method, status, midtrans_order_id, items, total_price, service_fees = [], due_date, toko_name, no_telp } = payload;
 
   // Validate items stock before starting transaction
   for (const item of items) {
@@ -49,7 +49,6 @@ export async function processCheckout(payload: CheckoutPayload, userId: number) 
       {
         invoice_number: payment_method === 'qris' ? newOrderId : generateInvoiceNumber(),
         total_price,
-        service_fee,
         payment_method,
         status,
         customer_name,
@@ -70,6 +69,8 @@ export async function processCheckout(payload: CheckoutPayload, userId: number) 
         {
           transaction_id: transaction.id,
           product_id: item.product_id,
+          product_name: item.product_name,
+          product_type: 'part',
           qty: item.qty,
           price_at_time: item.price_at_time,
           subtotal: item.subtotal,
@@ -91,6 +92,21 @@ export async function processCheckout(payload: CheckoutPayload, userId: number) 
           type: 'out',
           amount: item.qty,
           reason: 'sale',
+        },
+        { transaction: t }
+      );
+    }
+
+    // 3. Create service fees
+    for (const fee of service_fees) {
+      await TransactionDetail.create(
+        {
+          transaction_id: transaction.id,
+          product_name: fee.service_name,
+          product_type: 'service',
+          qty: 1, // Service fee is treated as a single item
+          price_at_time: fee.service_price,
+          subtotal: fee.service_price, // Assuming subtotal is the same as the service price for simplicity
         },
         { transaction: t }
       );
@@ -152,6 +168,7 @@ export async function updateTransactionStatus(id: number, status: TransactionSta
           transaction: t,
         });
 
+        if(!detail.product_id) continue; // Skip if no associated product (e.g. service fee)
         // Log the stock restoration
         await StockLog.create(
           {

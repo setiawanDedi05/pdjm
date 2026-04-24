@@ -4,6 +4,12 @@ export type TransactionStatus = 'pending' | 'paid' | 'cancelled';
 export type StockLogType = 'in' | 'out';
 export type StockLogReason = 'sale' | 'adjustment' | 'purchase';
 
+export interface ServiceFee {
+  id: string;
+  service_fee_name: string;
+  amount: number;
+}
+
 export interface User {
   id: number;
   username: string;
@@ -52,6 +58,8 @@ export interface TransactionDetail {
   id: number;
   transaction_id: number;
   product_id: number;
+  product_type: 'part' | 'service';
+  product_name?: string;
   qty: number;
   price_at_time: number;
   subtotal: number;
@@ -86,12 +94,16 @@ export interface CheckoutPayload {
   midtrans_order_id?: string | null;
   items: Array<{
     product_id: number;
+    product_name?: string;
     qty: number;
     price_at_time: number;
     subtotal: number;
   }>;
   total_price: number;
-  service_fee?: number;
+  service_fees?: Array<{
+    service_name: string;
+    service_price: number;
+  }>;
 }
 
 export interface AuthPayload {

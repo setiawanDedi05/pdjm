@@ -4,7 +4,9 @@ import sequelize from '@/lib/db/connection';
 interface TransactionDetailAttributes {
   id: number;
   transaction_id: number;
-  product_id: number;
+  product_id?: number;
+  product_type: 'part' | 'service';
+  product_name?: string;
   qty: number;
   price_at_time: number;
   subtotal: number;
@@ -19,7 +21,9 @@ class TransactionDetail
 {
   declare id: number;
   declare transaction_id: number;
-  declare product_id: number;
+  declare product_id?: number;
+  declare product_type: 'part' | 'service';
+  declare product_name?: string;
   declare qty: number;
   declare price_at_time: number;
   declare subtotal: number;
@@ -44,11 +48,22 @@ TransactionDetail.init(
     },
     product_id: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       references: {
         model: 'products',
         key: 'id',
       },
+      onUpdate: 'CASCADE',
+      onDelete: 'SET NULL', // PENTING: Jika produk dihapus, transaksi tidak hilang
+    },
+    product_name: {
+      type: DataTypes.STRING(200),
+      allowNull: true,
+    },
+    product_type: {
+      type: DataTypes.ENUM('part', 'service'),
+      defaultValue: 'part',
+      allowNull: true,
     },
     qty: {
       type: DataTypes.INTEGER,

@@ -50,6 +50,7 @@ export default function TransactionsPage() {
       const res = await fetch(`/api/transactions?${params.toString()}`, { credentials: 'include' });
       const data = await res.json();
       if (data.success) {
+        console.log(data.data, "transactions response");
         setTransactions(data.data.transactions ?? []);
         setTotalPages(Math.max(1, Math.ceil((data.data.total || 0) / pageSize)));
       }
@@ -64,6 +65,7 @@ export default function TransactionsPage() {
   useEffect(() => { fetchTransactions(); }, [fetchTransactions]);
 
   function openDetail(t: Transaction) {
+    console.log('Selected transaction:', t);
     setSelected(t);
     setDetailOpen(true);
   }
@@ -266,7 +268,7 @@ export default function TransactionsPage() {
                   <TableBody>
                     {(selected.details ?? []).map((d) => (
                       <TableRow key={d.id}>
-                        <TableCell className="text-sm">{d.product?.name ?? '-'}</TableCell>
+                        <TableCell className="text-sm">{d.product?.name ?? d.product_name ?? '-'}</TableCell>
                         <TableCell className="text-right">{d.qty}</TableCell>
                         <TableCell className="text-right">{formatCurrency(d.price_at_time)}</TableCell>
                         <TableCell className="text-right font-semibold">{formatCurrency(d.subtotal)}</TableCell>

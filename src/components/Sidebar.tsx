@@ -19,15 +19,15 @@ import { toast } from 'sonner';
 /** Routes accessible by every authenticated role */
 const sharedNav = [
   { href: '/kasir', label: 'Kasir', icon: ShoppingCart },
-  { href: '/transactions', label: 'Transaksi', icon: ListOrdered },
   { href: '/products', label: 'Produk', icon: Package },
-  { href: '/stock', label: 'Stok History', icon: TrendingDown },
-  { href: '/hutang', label: 'Hutang', icon: ListOrdered },
 ];
 
 /** Extra routes that are admin-only */
 const adminOnlyNav = [
+  { href: '/stock', label: 'Stok History', icon: TrendingDown },
   { href: '/reports', label: 'Laporan', icon: BarChart3 },
+  { href: '/transactions', label: 'Transaksi', icon: ListOrdered },
+  { href: '/hutang', label: 'Hutang', icon: ListOrdered },
 ];
 
 export default function Sidebar() {

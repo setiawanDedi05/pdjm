@@ -38,10 +38,12 @@ User.hasMany(Transaction, {
   foreignKey: 'user_id',
   as: 'transactions',
 });
+
 Transaction.belongsTo(User, {
   foreignKey: 'user_id',
   as: 'user',
 });
+
 
 let synced = false;
 
@@ -50,7 +52,7 @@ export async function syncDB(force = false) {
   try {
     await sequelize.authenticate();
     if (process.env.NODE_ENV !== 'production') {
-      await sequelize.sync({ force, alter: !force });
+      await sequelize.sync({ force, alter: true });
     } else {
       await sequelize.authenticate();   // production: rely on migrations, only authenticate
     }

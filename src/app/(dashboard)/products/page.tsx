@@ -148,7 +148,6 @@ export default function ProductsPage() {
   }, [fetchProducts]);
 
   useEffect(() => {
-    console.log({editProduct});
     setForm(
       editProduct
         ? {
@@ -163,7 +162,7 @@ export default function ProductsPage() {
             suplier: editProduct.suplier ?? '',
             alias_supplier: editProduct.alias_supplier ?? '',
           }
-        : { ...emptyForm, serial_number: generateShortId() }
+        : { ...emptyForm, serial_number: generateShortId().toUpperCase() }
     );
   }, [dialogOpen]);
 
@@ -251,7 +250,19 @@ export default function ProductsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
+      <div className="flex sm:hidden items-center gap-2">
+          <span className="text-sm text-slate-600">Tampilkan</span>
+          <select
+            className="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+            value={pageSize}
+            onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
+          >
+            {[5, 10, 20, 50, 100].map(size => (
+              <option key={size} value={size}>{size}</option>
+            ))}
+          </select>
+          <span className="text-sm text-slate-600">per halaman</span>
+        </div>
       <Card>
         <CardHeader className="pb-2">
           <div className="relative">
@@ -297,33 +308,33 @@ export default function ProductsPage() {
           </div>
         </CardContent>
       </Card>
-      <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-slate-600">Tampilkan</span>
-              <select
-                className="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-                value={pageSize}
-                onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
-              >
-                {[5, 10, 20, 50, 100].map(size => (
-                  <option key={size} value={size}>{size}</option>
-                ))}
-              </select>
-              <span className="text-sm text-slate-600">per halaman</span>
-            </div>
-            <div className="flex justify-end w-full sm:w-auto">
-              <Pagination
-                page={pendingPage ?? page}
-                totalPages={totalPages}
-                onPageChange={(p) => {
-                  if (p !== page) {
-                    setPendingPage(p);
-                    setPage(p);
-                  }
-                }}
-              />
-            </div>
-          </div>
+      <div className="mt-4 mb-16 grid grid-cols-1 sm:grid-cols-2 items-center gap-4">
+        <div className="hidden sm:flex items-center gap-2">
+          <span className="text-sm text-slate-600">Tampilkan</span>
+          <select
+            className="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+            value={pageSize}
+            onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
+          >
+            {[5, 10, 20, 50, 100].map(size => (
+              <option key={size} value={size}>{size}</option>
+            ))}
+          </select>
+          <span className="text-sm text-slate-600">per halaman</span>
+        </div>
+        <div className="flex justify-end w-full sm:w-auto">
+          <Pagination
+            page={pendingPage ?? page}
+            totalPages={totalPages}
+            onPageChange={(p) => {
+              if (p !== page) {
+                setPendingPage(p);
+                setPage(p);
+              }
+            }}
+          />
+        </div>
+      </div>
 
       {/* Dialog Add/Edit */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
