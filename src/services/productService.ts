@@ -1,4 +1,4 @@
-import { Op } from 'sequelize';
+import { col, fn, Op, where } from 'sequelize';
 import { Product } from '@/models';
 
 export async function getAllProducts(search?: string, page = 1, pageSize = 10) {
@@ -26,7 +26,7 @@ export async function getAllProducts(search?: string, page = 1, pageSize = 10) {
 }
 
 export async function getProductBySerial(serial_number: string) {
-  const product = await Product.findOne({ where: { serial_number } });
+  const product = await Product.findOne({ where: where(fn('LOWER', col('serial_number')), Op.eq, serial_number.toLowerCase())});
   if (!product) throw new Error(`Produk dengan serial ${serial_number} tidak ditemukan`);
   return product;
 }

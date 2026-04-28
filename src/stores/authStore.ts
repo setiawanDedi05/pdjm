@@ -8,11 +8,14 @@ interface AuthState {
   user: Omit<User, 'password'> | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  showAlert: boolean;
+
 
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   setUser: (user: Omit<User, 'password'> | null) => void;
+  setShowAlert: (showAlert: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -21,6 +24,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
       isLoading: false,
+      showAlert: true,
 
       login: async (username: string, password: string) => {
         set({ isLoading: true });
@@ -51,7 +55,7 @@ export const useAuthStore = create<AuthState>()(
             credentials: 'include',
           });
         } finally {
-          set({ user: null, isAuthenticated: false });
+          set({ user: null, isAuthenticated: false, showAlert: true });
         }
       },
 
@@ -72,6 +76,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       setUser: (user) => set({ user, isAuthenticated: !!user }),
+      setShowAlert: (showAlert) => set({ showAlert }),
     }),
     {
       name: 'bengkel-pos-auth',

@@ -1,20 +1,21 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, use } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination } from '@/components/ui/Pagination';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Printer, Eye, ListOrdered } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
-import type { Transaction, TransactionStatus } from '@/types';
+import type { Transaction, TransactionDetail, TransactionStatus } from '@/types';
 import { useReactToPrint } from 'react-to-print';
 import { useAuthStore } from '@/stores/authStore';
 import dynamic from 'next/dynamic';
+import { useAppStore } from '@/stores/appStore';
 
 const PrintReceipt = dynamic(() => import('@/components/PrintReceipt'), { ssr: false });
 
@@ -25,11 +26,31 @@ const statusColors: Record<string, string> = {
 };
 
 export default function TransactionsPage() {
-  const { user } = useAuthStore();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [status, setStatus] = useState('all');
-  const [loading, setLoading] = useState(true);
+  const {setLoading} = useAppStore();
   const [selected, setSelected] = useState<Transaction | null>(null);
+  const [potongan, setPotongan] = useState<{
+    data: TransactionDetail[];
+    total: number;
+  }>({
+    data: [],
+    total: 0
+  });
+  const [serviceFees, setServiceFees] = useState<{
+    data: TransactionDetail[];
+    total: number;
+  }>({
+    data: [],
+    total: 0
+  });
+  const [products, setProducts] = useState<{
+    data: TransactionDetail[],
+    total: number
+  }>({
+    data: [],
+    total: 0
+  });  
   const [detailOpen, setDetailOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isCheckingMidtrans, setIsCheckingMidtrans] = useState(false);
@@ -50,7 +71,6 @@ export default function TransactionsPage() {
       const res = await fetch(`/api/transactions?${params.toString()}`, { credentials: 'include' });
       const data = await res.json();
       if (data.success) {
-        console.log(data.data, "transactions response");
         setTransactions(data.data.transactions ?? []);
         setTotalPages(Math.max(1, Math.ceil((data.data.total || 0) / pageSize)));
       }
@@ -65,7 +85,6 @@ export default function TransactionsPage() {
   useEffect(() => { fetchTransactions(); }, [fetchTransactions]);
 
   function openDetail(t: Transaction) {
-    console.log('Selected transaction:', t);
     setSelected(t);
     setDetailOpen(true);
   }
@@ -136,6 +155,21 @@ export default function TransactionsPage() {
       setIsCheckingMidtrans(false);
     }
   }
+
+  useEffect(() => {
+    setPotongan({
+      data: selected?.details?.filter((d) => d.product_type === 'discount') || [],
+      total: selected?.details?.filter((d) => d.product_type === 'discount').reduce((acc, d) => Number(acc) + Number(d.subtotal), 0) || 0,
+    });
+    setServiceFees({
+      data: selected?.details?.filter((d) => d.product_type === 'service') || [],
+      total: selected?.details?.filter((d) => d.product_type === 'service').reduce((acc, d) => Number(acc) + Number(d.subtotal), 0) || 0,
+    })
+    setProducts({
+      data: selected?.details?.filter((d) => d.product_type === 'part') || [],
+      total: selected?.details?.filter((d) => d.product_type === 'part').reduce((acc, d) => Number(acc) + Number(d.subtotal), 0) || 0,
+    })
+  },[selected])
 
   return (
     <div className="p-6 space-y-4">
@@ -266,7 +300,7 @@ export default function TransactionsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(selected.details ?? []).map((d) => (
+                    {products.data.map((d) => (
                       <TableRow key={d.id}>
                         <TableCell className="text-sm">{d.product?.name ?? d.product_name ?? '-'}</TableCell>
                         <TableCell className="text-right">{d.qty}</TableCell>
@@ -274,11 +308,33 @@ export default function TransactionsPage() {
                         <TableCell className="text-right font-semibold">{formatCurrency(d.subtotal)}</TableCell>
                       </TableRow>
                     ))}
-                    <TableRow>
+                    {serviceFees.data.map((d) => (
+                      <TableRow key={d.id}>
+                        <TableCell className="text-sm">Service {d.product?.name ?? d.product_name ?? '-'}</TableCell>
+                        <TableCell className="text-right py-1"></TableCell>
+                        <TableCell className="text-right py-1"></TableCell>
+                        <TableCell className="text-right py-1 font-semibold">{formatCurrency(d.subtotal)}</TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className='border-0'>
                       <TableCell colSpan={3} className="font-bold text-right">TOTAL</TableCell>
-                      <TableCell className="font-bold text-right text-orange-600">{formatCurrency(selected.total_price)}</TableCell>
+                      <TableCell className="font-bold text-right">{formatCurrency(Number(selected.total_price) + potongan.total)}</TableCell>
                     </TableRow>
-                  </TableBody>
+                    {potongan.data.map((d) => (
+                      <TableRow key={d.id} className='border-0'>
+                        <TableCell className="text-sm py-0">Potongan {d.product?.name ?? d.product_name ?? '-'}</TableCell>
+                        <TableCell className="text-right py-0"></TableCell>
+                        <TableCell className="text-right py-0"></TableCell>
+                        <TableCell className="text-right font-bold text-red-500 py-0">- {formatCurrency(d.subtotal)}</TableCell>
+                      </TableRow>
+                    ))}
+                    {potongan.total > 0 && (
+                      <TableRow className='border-0'>
+                      <TableCell colSpan={3} className="font-bold text-right">GRAND TOTAL</TableCell>
+                      <TableCell className="font-bold text-right">{formatCurrency(selected.total_price)}</TableCell>
+                    </TableRow>
+                    )}
+                    </TableBody>
                 </Table>
               </div>
               <div className="flex gap-2 pt-2 items-center">
@@ -302,9 +358,11 @@ export default function TransactionsPage() {
                     {isCheckingMidtrans ? 'Memeriksa...' : 'Cek Status Midtrans'}
                   </Button>
                 )}
-                <Button size="sm" variant="outline" onClick={() => handlePrint()} className="ml-auto">
-                  <Printer className="h-3.5 w-3.5 mr-1" /> Cetak
+                {selected.status !== 'cancelled' &&  
+                  <Button size="sm" variant="outline" onClick={() => handlePrint()} className="ml-auto">
+                    <Printer className="h-3.5 w-3.5 mr-1" /> Cetak
                 </Button>
+                }
               </div>
             </div>
           )}
@@ -314,7 +372,7 @@ export default function TransactionsPage() {
       {/* Hidden print area */}
       {selected && (
         <div className="hidden">
-          <PrintReceipt ref={printRef} transaction={selected} />
+          <PrintReceipt ref={printRef} transaction={selected} potongan={potongan} servicefees={serviceFees} products={products} />
         </div>
       )}
     </div>

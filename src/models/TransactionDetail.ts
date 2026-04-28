@@ -5,7 +5,7 @@ interface TransactionDetailAttributes {
   id: number;
   transaction_id: number;
   product_id?: number;
-  product_type: 'part' | 'service';
+  product_type: 'part' | 'service' | 'discount';
   product_name?: string;
   qty: number;
   price_at_time: number;
@@ -22,7 +22,7 @@ class TransactionDetail
   declare id: number;
   declare transaction_id: number;
   declare product_id?: number;
-  declare product_type: 'part' | 'service';
+  declare product_type: 'part' | 'service' | 'discount';
   declare product_name?: string;
   declare qty: number;
   declare price_at_time: number;

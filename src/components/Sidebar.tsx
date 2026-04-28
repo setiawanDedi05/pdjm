@@ -20,14 +20,15 @@ import { toast } from 'sonner';
 const sharedNav = [
   { href: '/kasir', label: 'Kasir', icon: ShoppingCart },
   { href: '/products', label: 'Produk', icon: Package },
+  { href: '/draft', label: 'Draft', icon: ListOrdered },
 ];
 
 /** Extra routes that are admin-only */
 const adminOnlyNav = [
-  { href: '/stock', label: 'Stok History', icon: TrendingDown },
-  { href: '/reports', label: 'Laporan', icon: BarChart3 },
   { href: '/transactions', label: 'Transaksi', icon: ListOrdered },
   { href: '/hutang', label: 'Hutang', icon: ListOrdered },
+  { href: '/stock', label: 'Stok History', icon: TrendingDown },
+  { href: '/reports', label: 'Laporan', icon: BarChart3 },
 ];
 
 export default function Sidebar() {
@@ -45,7 +46,7 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="w-60 bg-slate-900 text-white flex flex-col min-h-screen">
+    <aside className="w-60 bg-slate-900 text-white flex flex-col min-h-screen sticky top-0">
       {/* Logo */}
       <div className="flex items-center gap-3 p-5 border-b border-slate-700">
         <div className="bg-orange-500 rounded-lg p-1.5">

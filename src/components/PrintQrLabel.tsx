@@ -3,6 +3,7 @@
 import { forwardRef } from 'react';
 import QRCode from 'react-qr-code';
 import type { Product } from '@/types';
+import { formatDateShort } from '@/lib/utils';
 
 interface PrintQrLabelProps {
   product: Product;
@@ -22,13 +23,18 @@ const PrintQrLabel = forwardRef<HTMLDivElement, PrintQrLabelProps>(
           display: 'flex',
         }}
       >
-        <QRCode
-          value={product.serial_number}
-          size={90}
-          bgColor="#ffffff"
-          fgColor="#000000"
-          level="M"
-        />
+        <div className='flex flex-col items-center'>
+          <QRCode
+            value={product.serial_number}
+            size={90}
+            bgColor="#ffffff"
+            fgColor="#000000"
+            level="M"
+            />
+            <span className='text-xs'>
+              {product.serial_number}
+            </span>
+          </div>
         {/* Store name */}
         <div style={{
           display:'flex',
@@ -49,7 +55,7 @@ const PrintQrLabel = forwardRef<HTMLDivElement, PrintQrLabelProps>(
                 letterSpacing: '0.5px',
               }}
               >
-              {`${product.alias_supplier}/${product.buy_date ? new Date(product.buy_date).toISOString().slice(0, 10) : 'unknown'}`}
+              {`${product.alias_supplier}/${product.buy_date ? product.buy_date.split('T')[0] : 'unknown'}`}
             </div>
         </div>
       </div>

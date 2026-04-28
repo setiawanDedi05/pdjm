@@ -1,8 +1,15 @@
 'use client';
 
+import AlertStock from '@/components/AlertStock';
 import { BottomNav } from '@/components/BottomNav';
 import { FloatingAlert } from '@/components/FloatingAlert';
+import { FloatingCart } from '@/components/FloatingCart';
+import Loading from '@/components/Loading';
 import Sidebar from '@/components/Sidebar';
+import { useAppStore } from '@/stores/appStore';
+import { useAuthStore } from '@/stores/authStore';
+import { useCartStore } from '@/stores/cartStore';
+import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -11,7 +18,9 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const params = new URLSearchParams(window.location.search);
+  const pathname = usePathname();
+  const {user} = useAuthStore()
+  const {items} = useCartStore()
   const [lowStockProducts, setLowStockProducts] = useState({rows: [], count: 0});
   const [pendingHutangTransactions, setPendingHutangTransactions] = useState({rows: [], count: 0});
   const fetchLowStockProducts = async () => {
@@ -39,21 +48,30 @@ export default function DashboardLayout({
   };
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      fetchLowStockProducts();
-      fetchPendingHutangTransactions();
-    }, 5000);
-    return () => clearInterval(interval);
+    if(user?.role === 'admin') {
+      const interval = setInterval(() => {
+        fetchLowStockProducts();
+        fetchPendingHutangTransactions();
+      }, 5000);
+      return () => clearInterval(interval);
+    }
   }, []);
 
   return (
     <div className="flex min-h-screen">
       <div className="hidden md:block">
+        <Loading />
         <Sidebar />
-        <FloatingAlert
+        <AlertStock lowStockProducts={lowStockProducts} />
+        {
+        user?.role === 'admin' && <FloatingAlert
           lowStockProducts={lowStockProducts}
           pendingHutangTransactions={pendingHutangTransactions}
           />
+        }
+        {
+          items.length > 0 && pathname === '/products' && <FloatingCart />
+        }
       </div>
       <main className="flex-1 overflow-auto bg-slate-50">{children}</main>
       <div className="md:hidden">

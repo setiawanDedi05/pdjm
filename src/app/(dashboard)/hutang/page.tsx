@@ -12,11 +12,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Printer, Eye, ListOrdered } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
-import type { Transaction, TransactionStatus } from '@/types';
+import type { Transaction, TransactionDetail, TransactionStatus } from '@/types';
 import { useReactToPrint } from 'react-to-print';
 import { useAuthStore } from '@/stores/authStore';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
+import { useAppStore } from '@/stores/appStore';
 
 const PrintReceipt = dynamic(() => import('@/components/PrintReceipt'), { ssr: false });
 
@@ -31,13 +32,35 @@ export default function HutangPage() {
   const [hutangList, setHutangList] = useState<Transaction[]>([]);
   const [status, setStatus] = useState( searchParams.get('status') || 'all');
   const [dueFilter, setDueFilter] = useState(searchParams.get('due') || 'all'); // 'all', '7', '10'
-  const [loading, setLoading] = useState(true);
+  const {loading, setLoading} = useAppStore();
   const [isUpdating, setIsUpdating] = useState(false);
   const [selected, setSelected] = useState<Transaction | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
+  const [potongan, setPotongan] = useState<{
+      data: TransactionDetail[];
+      total: number;
+    }>({
+      data: [],
+      total: 0
+    });
+    const [serviceFees, setServiceFees] = useState<{
+      data: TransactionDetail[];
+      total: number;
+    }>({
+      data: [],
+      total: 0
+    });
+    const [products, setProducts] = useState<{
+      data: TransactionDetail[],
+      total: number
+    }>({
+      data: [],
+      total: 0
+    });  
+  
   const printRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({ contentRef: printRef });
 
@@ -102,12 +125,27 @@ export default function HutangPage() {
     }
   }
 
+  useEffect(() => {
+    setPotongan({
+      data: selected?.details?.filter((d) => d.product_type === 'discount') || [],
+      total: selected?.details?.filter((d) => d.product_type === 'discount').reduce((acc, d) => Number(acc) + Number(d.subtotal), 0) || 0,
+    });
+    setServiceFees({
+      data: selected?.details?.filter((d) => d.product_type === 'service') || [],
+      total: selected?.details?.filter((d) => d.product_type === 'service').reduce((acc, d) => Number(acc) + Number(d.subtotal), 0) || 0,
+    })
+    setProducts({
+      data: selected?.details?.filter((d) => d.product_type === 'part') || [],
+      total: selected?.details?.filter((d) => d.product_type === 'part').reduce((acc, d) => Number(acc) + Number(d.subtotal), 0) || 0,
+    })
+  },[selected])
+
   return (
     <div className="p-6 space-y-4">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Riwayat Transaksi</h1>
-          <p className="text-sm text-slate-500">Semua transaksi penjualan</p>
+          <p className="text-sm text-slate-500">transaksi hutang</p>
         </div>
         <div className="flex gap-2 items-center">
           <Select value={status} onValueChange={v => { setStatus(v); setPage(1); }}>
@@ -210,29 +248,51 @@ export default function HutangPage() {
                     </div>
                     <div className="border rounded-lg overflow-hidden">
                       <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Produk</TableHead>
-                            <TableHead className="text-right">Qty</TableHead>
-                            <TableHead className="text-right">Harga</TableHead>
-                            <TableHead className="text-right">Subtotal</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {(selected.details ?? []).map((d) => (
-                            <TableRow key={d.id}>
-                              <TableCell className="text-sm">{d.product?.name ?? '-'}</TableCell>
-                              <TableCell className="text-right">{d.qty}</TableCell>
-                              <TableCell className="text-right">{formatCurrency(d.price_at_time)}</TableCell>
-                              <TableCell className="text-right font-semibold">{formatCurrency(d.subtotal)}</TableCell>
-                            </TableRow>
-                          ))}
-                          <TableRow>
-                            <TableCell colSpan={3} className="font-bold text-right">TOTAL</TableCell>
-                            <TableCell className="font-bold text-right text-orange-600">{formatCurrency(selected.total_price)}</TableCell>
-                          </TableRow>
-                        </TableBody>
-                      </Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Produk</TableHead>
+                      <TableHead className="text-right">Qty</TableHead>
+                      <TableHead className="text-right">Harga</TableHead>
+                      <TableHead className="text-right">Subtotal</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {products.data.map((d) => (
+                      <TableRow key={d.id}>
+                        <TableCell className="text-sm">{d.product?.name ?? d.product_name ?? '-'}</TableCell>
+                        <TableCell className="text-right">{d.qty}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(d.price_at_time)}</TableCell>
+                        <TableCell className="text-right font-semibold">{formatCurrency(d.subtotal)}</TableCell>
+                      </TableRow>
+                    ))}
+                    {serviceFees.data.map((d) => (
+                      <TableRow key={d.id}>
+                        <TableCell className="text-sm">Service {d.product?.name ?? d.product_name ?? '-'}</TableCell>
+                        <TableCell className="text-right py-1"></TableCell>
+                        <TableCell className="text-right py-1"></TableCell>
+                        <TableCell className="text-right py-1 font-semibold">{formatCurrency(d.subtotal)}</TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className='border-0'>
+                      <TableCell colSpan={3} className="font-bold text-right">TOTAL</TableCell>
+                      <TableCell className="font-bold text-right">{formatCurrency(Number(selected.total_price) + potongan.total)}</TableCell>
+                    </TableRow>
+                    {potongan.data.map((d) => (
+                      <TableRow key={d.id} className='border-0'>
+                        <TableCell className="text-sm py-0">Potongan {d.product?.name ?? d.product_name ?? '-'}</TableCell>
+                        <TableCell className="text-right py-0"></TableCell>
+                        <TableCell className="text-right py-0"></TableCell>
+                        <TableCell className="text-right font-bold text-red-500 py-0">- {formatCurrency(d.subtotal)}</TableCell>
+                      </TableRow>
+                    ))}
+                    {
+                      potongan.total > 0 && <TableRow className='border-0'>
+                        <TableCell colSpan={3} className="font-bold text-right">GRAND TOTAL</TableCell>
+                        <TableCell className="font-bold text-right">{formatCurrency(selected.total_price)}</TableCell>
+                      </TableRow>
+                    }
+                    </TableBody>
+                </Table>
                     </div>
                     <div className="flex gap-2 pt-2 items-center">
                       {selected.status === 'pending'  ? (
@@ -266,7 +326,7 @@ export default function HutangPage() {
       {/* Hidden print area */}
       {selected && (
         <div className="hidden">
-          {selected ? <PrintReceipt ref={printRef} transaction={selected} /> : null}
+          {selected ? <PrintReceipt ref={printRef} transaction={selected} servicefees={serviceFees} products={products} potongan={potongan} /> : null}
         </div>
       )}
     </div>

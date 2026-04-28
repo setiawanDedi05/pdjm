@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "dev:bengkel": "next dev -H 192.168.100.111",
     "dev": "next dev -H 192.168.1.111",
     "build": "next build",
     "start": "next start -H 0.0.0.0",
@@ -50,6 +51,7 @@
     "dotenv": "^17.3.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
+    "tailwind-scrollbar": "^4.0.2",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5"

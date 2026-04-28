@@ -4,19 +4,22 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Table as ReusableTable, Column as TableColumn } from '@/components/ui/ReusableTable';
+import { Table as ReusableTable, Column } from '@/components/ui/ReusableTable';
 import { Pagination } from '@/components/ui/Pagination';
-import { Plus, Search, Edit, Trash2, Package, QrCode, Printer, Upload } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Package, QrCode, Printer, Upload, ShoppingBag } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { formatCurrency, generateShortId } from '@/lib/utils';
 import { toast } from 'sonner';
-import type { Product } from '@/types';
+import type { CartItem, Product } from '@/types';
 import { useReactToPrint } from 'react-to-print';
 import QRCode from 'react-qr-code';
 import PrintQrLabel from '@/components/PrintQrLabel';
+import { useAuthStore } from '@/stores/authStore';
+import { useAppStore } from '@/stores/appStore';
+import { useCartStore } from '@/stores/cartStore';
+import SmartNumericInput from '@/components/ui/SmartNumericInput';
 
 const emptyForm = {
   serial_number: '',
@@ -33,15 +36,27 @@ const emptyForm = {
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [pendingPage, setPendingPage] = useState<number|null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [pageSize, setPageSize] = useState(10);
-    // Handle Excel import
-    const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin';
+  const [search, setSearch] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editProduct, setEditProduct] = useState<Product | null>(null);
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [qrProduct, setQrProduct] = useState<Product | null>(null);
+  const [qrDialogOpen, setQrDialogOpen] = useState(false);
+  const qrPrintRef = useRef<HTMLDivElement>(null);
+  const { addItem, items  } = useCartStore();
+  const handlePrintQr = useReactToPrint({ contentRef: qrPrintRef });
+  const {setLoading} = useAppStore();
+  
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
       setImporting(true);
@@ -60,6 +75,7 @@ export default function ProductsPage() {
           name: header.findIndex((h) => /nama/i.test(String(h))),
           description: header.findIndex((h) => /keterangan/i.test(String(h))),
           stock: header.findIndex((h) => /stok/i.test(String(h))),
+          minimum_stock: header.findIndex((h) => /minimum stok/i.test(String(h))),
           price_buy: header.findIndex((h) => /harga beli/i.test(String(h))),
           price_sell: header.findIndex((h) => /harga jual/i.test(String(h))),
           buy_date: header.findIndex((h) => /tanggal beli/i.test(String(h))),
@@ -79,9 +95,10 @@ export default function ProductsPage() {
             name: String(row[colMap.name] || '').trim(),
             description: row[colMap.description] ? String(row[colMap.description]) : '',
             stock: Number(row[colMap.stock]) || 0,
+            minimum_stock: Number(row[colMap.stock]) || 0,
             price_buy: Number(row[colMap.price_buy]) || 0,
             price_sell: Number(row[colMap.price_sell]) || 0,
-            buy_date: row[colMap.buy_date] ? String(row[colMap.buy_date]).slice(0, 10) : null,
+            buy_date: row[colMap.buy_date] ? String(row[colMap.buy_date]).slice(1) : null,
             suplier: row[colMap.suplier] ? String(row[colMap.suplier]) : '',
             alias_supplier: row[colMap.alias_supplier] ? String(row[colMap.alias_supplier]).toUpperCase() : '',
           };
@@ -111,15 +128,6 @@ export default function ProductsPage() {
         setImporting(false);
       }
     };
-  const [search, setSearch] = useState('');
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editProduct, setEditProduct] = useState<Product | null>(null);
-  const [form, setForm] = useState(emptyForm);
-  const [saving, setSaving] = useState(false);
-  const [qrProduct, setQrProduct] = useState<Product | null>(null);
-  const [qrDialogOpen, setQrDialogOpen] = useState(false);
-  const qrPrintRef = useRef<HTMLDivElement>(null);
-  const handlePrintQr = useReactToPrint({ contentRef: qrPrintRef });
 
   function openQr(p: Product) {
     setQrProduct(p);
@@ -127,6 +135,7 @@ export default function ProductsPage() {
   }
 
   const fetchProducts = useCallback(async () => {
+    setLoading(true);
     try {
       const q = `?page=${page}&pageSize=${pageSize}&search=${encodeURIComponent(search)}`;
       const res = await fetch(`/api/products${q}`, { credentials: 'include' });
@@ -138,7 +147,7 @@ export default function ProductsPage() {
     } catch {
       toast.error('Gagal memuat produk');
     } finally {
-      setPendingPage(null);
+      setLoading(false);
     }
   }, [search, page, pageSize]);
 
@@ -146,6 +155,10 @@ export default function ProductsPage() {
     const t = setTimeout(fetchProducts, 300);
     return () => clearTimeout(t);
   }, [fetchProducts]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
 
   useEffect(() => {
     setForm(
@@ -186,10 +199,18 @@ export default function ProductsPage() {
     try {
       const url = editProduct ? `/api/products/${editProduct.id}` : '/api/products';
       const method = editProduct ? 'PUT' : 'POST';
+      const payload = { ...form, 
+          buy_date: editProduct ? editProduct.buy_date : form.buy_date, 
+          serial_number: editProduct ? editProduct.serial_number : form.serial_number,
+          stock: Number(form.stock), 
+          minimum_stock: Number(form.minimum_stock), 
+          price_buy: Number(form.price_buy), 
+          price_sell: Number(form.price_sell) 
+        }
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, serial_number: editProduct ? editProduct.serial_number : form.serial_number, stock: Number(form.stock), minimum_stock: Number(form.minimum_stock), price_buy: Number(form.price_buy), price_sell: Number(form.price_sell) }),
+        body: JSON.stringify(payload),
         credentials: 'include',
       });
       const data = await res.json();
@@ -219,12 +240,12 @@ export default function ProductsPage() {
 
   return (
     <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Manajemen Produk</h1>
           <p className="text-sm text-slate-500">Kelola data produk dan suku cadang</p>
         </div>
-        <div className="flex gap-2">
+        {isAdmin && <div className="flex gap-2">
           <Button onClick={() => setImportDialogOpen(true)} variant="outline" className="border-orange-500 text-orange-600">
             <Upload className="h-4 w-4 mr-2" /> Import Excel
           </Button>
@@ -232,6 +253,7 @@ export default function ProductsPage() {
             <Plus className="h-4 w-4 mr-2" /> Tambah Produk
           </Button>
         </div>
+       }
       </div>
       {/* Dialog Import Excel */}
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
@@ -288,15 +310,20 @@ export default function ProductsPage() {
                 { key: 'price_sell', header: 'Harga Jual', render: (p) => formatCurrency(p.price_sell), className: 'text-right' },
                 { key: 'actions', header: 'Aksi', render: (p) => (
                   <div className="flex gap-1 justify-center">
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => addItem(p, 1) }>
+                      <ShoppingBag className="h-3.5 w-3.5" />
+                    </Button>
                     <Button size="icon" variant="ghost" className="h-7 w-7 text-blue-500" title="Lihat QR Code" onClick={() => openQr(p)}>
                       <QrCode className="h-3.5 w-3.5" />
                     </Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(p)}>
-                      <Edit className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500" onClick={() => handleDelete(p)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    {isAdmin && <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(p)}>
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
+                    }
+                    {isAdmin && <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500" onClick={() => handleDelete(p)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    }
                   </div>
                 ), className: 'text-center' },
               ]}
@@ -324,11 +351,10 @@ export default function ProductsPage() {
         </div>
         <div className="flex justify-end w-full sm:w-auto">
           <Pagination
-            page={pendingPage ?? page}
+            page={page}
             totalPages={totalPages}
             onPageChange={(p) => {
               if (p !== page) {
-                setPendingPage(p);
                 setPage(p);
               }
             }}
@@ -356,20 +382,36 @@ export default function ProductsPage() {
               <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Deskripsi produk" />
             </div>
             <div className="space-y-1">
-              <Label>Stok</Label>
-              <Input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: Number(e.target.value) })} min={0} />
+              <SmartNumericInput 
+                label="Stok" 
+                value={form.stock} 
+                onChange={(val) => setForm({ ...form, stock: val })}
+                isCurrency
+              />
             </div>
             <div className="space-y-1">
-              <Label>Stok Minimum</Label>
-              <Input type="number" value={form.minimum_stock} onChange={(e) => setForm({ ...form, minimum_stock: Number(e.target.value) })} min={0} />
+              <SmartNumericInput 
+                label="Minimum Stok" 
+                value={form.minimum_stock} 
+                onChange={(val) => setForm({ ...form, minimum_stock: val })}
+                isCurrency
+              />  
             </div>
             <div className="space-y-1">
-              <Label>Harga Beli (Rp)</Label>
-              <Input type="number" value={form.price_buy} onChange={(e) => setForm({ ...form, price_buy: Number(e.target.value) })} min={0} />
+              <SmartNumericInput 
+                label="Harga Beli (Rp)" 
+                value={form.price_buy} 
+                onChange={(val) => setForm({ ...form, price_buy: val })}
+                isCurrency
+              />
             </div>
             <div className="space-y-1">
-              <Label>Harga Jual (Rp)</Label>
-              <Input type="number" value={form.price_sell} onChange={(e) => setForm({ ...form, price_sell: Number(e.target.value) })} min={0} />
+              <SmartNumericInput 
+                label="Harga Jual (Rp)" 
+                value={form.price_sell} 
+                onChange={(val) => setForm({ ...form, price_sell: val })}
+                isCurrency
+              />  
             </div>
             <div className="space-y-1">
               <Label>Tanggal Beli</Label>

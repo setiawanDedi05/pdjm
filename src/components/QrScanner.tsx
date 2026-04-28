@@ -70,7 +70,6 @@ export default function QrScanner({ onScan, onError }: QrScannerProps) {
     setIsPaused(true); // Beri feedback visual kalau scanner sedang "istirahat"
     
     // 2. Kirim hasil scan
-    console.log("Scan Success:", decodedText);
     onScan(decodedText);
 
     // 3. Set timer untuk melepas Cooldown

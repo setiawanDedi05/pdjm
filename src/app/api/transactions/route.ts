@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { processCheckout, getTransactions } from '@/services/checkoutService';
+import { processCheckout, getTransactions, updateTransactionStatus } from '@/services/checkoutService';
 import { getAuthFromRequest } from '@/lib/auth';
 import { apiResponse, apiError, handleApiError } from '@/lib/utils';
 import { syncDB } from '@/models';
@@ -8,7 +8,7 @@ const checkoutSchema = z.object({
   customer_name: z.string().optional(),
   vehicle_plate: z.string().optional(),
   payment_method: z.enum(['cash', 'qris', 'va', 'hutang', 'transfer']),
-  status: z.enum(['paid', 'pending']).default('pending'),
+  status: z.enum(['paid', 'pending', 'draft', 'inprogress']).default('pending'),
   midtrans_order_id: z.string().nullable().optional(),
   total_price: z.coerce.number().min(0),
   service_fees: z.array(
@@ -17,6 +17,12 @@ const checkoutSchema = z.object({
       service_price: z.coerce.number().min(0),          // DECIMAL — arrives as string
     })
   ).optional(),
+  discount: z.array(
+    z.object({
+      discount_name: z.string().min(2).max(100),  // STRING — always a JS string
+      discount_price: z.coerce.number().min(0),          // DECIMAL — arrives as string
+    })
+  ),
   toko_name: z.string().optional(),
   no_telp: z.string().optional(),
   items: z
@@ -40,9 +46,7 @@ export async function GET(request: Request) {
     await syncDB();
     const auth = getAuthFromRequest(request);
     if (!auth) return apiError('Unauthorized', 401);
-    if (auth.role !== 'admin') {
-      return apiError('Forbidden: hanya admin yang dapat mengakses daftar transaksi', 403);
-    }
+    if (!['admin', 'kasir'].includes(auth.role)) return apiError('Forbidden', 403);
 
     const { searchParams } = new URL(request.url);
     const page = Number(searchParams.get('page')) || 1;
@@ -66,7 +70,6 @@ export async function POST(request: Request) {
     if (!['admin', 'kasir'].includes(auth.role)) return apiError('Forbidden', 403);
 
     const body = await request.json();
-    console.log('Received checkout payload:', body);
     const parsed = checkoutSchema.safeParse(body);
     if (!parsed.success) {
       console.error('Validation error:', parsed.error);
@@ -78,4 +81,3 @@ export async function POST(request: Request) {
     return handleApiError(error);
   }
 }
-

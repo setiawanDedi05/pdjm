@@ -8,6 +8,7 @@ import { BarChart3, TrendingUp, ShoppingCart, Package, LoaderIcon } from 'lucide
 import { formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { Transaction } from '@/types';
+import { useAppStore } from '@/stores/appStore';
 
 interface ReportSummary {
   totalRevenue: number;
@@ -18,7 +19,7 @@ interface ReportSummary {
 
 export default function ReportsPage() {
   const [period, setPeriod] = useState('month');
-  const [loading, setLoading] = useState(true);
+  const {loading, setLoading} = useAppStore();
   const [summary, setSummary] = useState<ReportSummary>({
     totalRevenue: 0, totalTransactions: 0, totalItemsSold: 0, avgTransaction: 0,
   });

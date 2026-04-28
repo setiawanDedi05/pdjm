@@ -63,3 +63,44 @@ body {
     width: 60mm;
   }
 }
+
+/* Sembunyikan Next.js Error Overlay */
+nextjs-portal {
+    display: none !important;
+}
+
+@theme {
+  /* Kamu bisa tambah variabel tema v4 di sini jika perlu */
+  --color-scrollbar-thumb: var(--color-slate-300);
+  --color-scrollbar-hover: var(--color-slate-400);
+}
+
+/* Custom Scrollbar - The V4 Way */
+@layer base {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--color-scrollbar-thumb);
+    border-radius: 10px;
+    /* Efek padding di dalam scrollbar menggunakan border transparan */
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-scrollbar-hover);
+  }
+
+  /* Support Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-scrollbar-thumb) transparent;
+  }
+}

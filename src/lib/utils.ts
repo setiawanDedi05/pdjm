@@ -72,3 +72,7 @@ export const generateShortId = () => {
   return crypto.randomBytes(3).toString('hex'); // 3 bytes = 6 karakter hex
 };
 
+export const generateLongId = () => {
+  return crypto.randomBytes(6).toString('hex'); // 6 bytes = 12 karakter hex
+};
+

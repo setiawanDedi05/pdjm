@@ -7,7 +7,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { 
@@ -15,20 +15,16 @@ import {
   Banknote, CreditCard, BanknoteXIcon, 
   PlusCircleIcon, MinusCircleIcon, Search 
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, generateLongId, generateShortId } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Product } from '@/types';
+import { Product, TransactionStatus } from '@/types';
 import { 
   Dialog, DialogContent, DialogHeader, 
   DialogTitle, DialogDescription, DialogClose, DialogFooter 
 } from '@/components/ui/dialog';
+import { Transaction } from '@/models';
 
 const QrScanner = dynamic(() => import('@/components/QrScanner'), { ssr: false });
-
-type ServiceFeeType = {
-  serviceName: string;
-  servicePrice: number;
-}
 
 export default function KasirPage() {
   const { user } = useAuthStore();
@@ -36,13 +32,12 @@ export default function KasirPage() {
     items, customerName, vehiclePlate, paymentMethod,
     addItem, removeItem, updateQty, clearCart,
     setCustomerName, setVehiclePlate, setPaymentMethod,
-    totalPrice, noTelp, tokoName, setTokoName, setNoTelp
+    totalPrice, noTelp, tokoName, setTokoName, setNoTelp, serviceFee, setServiceFee, transactionId,
+    setDiscount, discount 
   } = useCartStore();
-
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [manualSerial, setManualSerial] = useState('');
-  const [serviceFee, setServiceFee] = useState<ServiceFeeType[]>([]);
   const [hasMounted, setHasMounted] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
 
@@ -92,6 +87,10 @@ export default function KasirPage() {
         service_name: fee.serviceName,
         service_price: fee.servicePrice,
       })),
+      discount: discount.map(d => ({
+        discount_name: d.discountName,
+        discount_price: d.discountPrice
+      })),
       items: items.map((i) => ({
         product_id: i.product.id,
         qty: i.qty,
@@ -100,16 +99,21 @@ export default function KasirPage() {
       })),
     };
 
-    const res = await fetch('/api/transactions', {
-      method: 'POST',
+    const apiNewTransaction ='/api/transactions';
+    const apiOldTransaction = `/api/transactions/${transactionId}`;
+
+    const res = await fetch(transactionId ? apiOldTransaction : apiNewTransaction, {
+      method: transactionId ? 'PUT': 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
       credentials: 'include',
-    });
+    })
+
     const data = await res.json();
     if (!res.ok || !data.success) throw new Error(data.error || 'Checkout gagal');
     clearCart();
     setServiceFee([]);
+    setDiscount([]);
     setShowTransferModal(false);
     return data.data;
   }
@@ -139,15 +143,32 @@ export default function KasirPage() {
     if (paymentMethod === 'hutang' && !debtValidation()) return;
     setIsSaving(true);
     try {
-      await submitCheckout('pending');
+      await submitCheckout('draft');
       toast.success('Transaksi disimpan');
     } catch (err: any) {
       toast.error(err.message);
     } finally { setIsSaving(false); }
   };
 
+    const handleCancelTransaction = async () => {
+      try {
+        const res = await fetch(`/api/transactions/${transactionId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: "cancelled" }),
+          credentials: 'include',
+        });
+        const data = await res.json();
+        clearCart()
+        if (!res.ok || !data.success) throw new Error(data.error);
+        toast.success('transaksi dibatalkan');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Gagal cancel transaksi');
+      }
+    }
+
   const itemsTotal = totalPrice();
-  const total = itemsTotal + serviceFee.reduce((sum, fee) => sum + fee.servicePrice, 0);
+  const total = itemsTotal + serviceFee.reduce((sum, fee) => sum + fee.servicePrice, 0) - discount.reduce((sum, dis) => sum + dis.discountPrice, 0);
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50">
@@ -196,12 +217,12 @@ export default function KasirPage() {
         {/* Scanner Section */}
         <Card className="border-none shadow-sm overflow-hidden">
           <CardContent className="p-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 p-5">
-              <div className="aspect-video flex items-center justify-center relative">
+            <div className="grid grid-cols-1 p-5">
+              <div className="aspect-video md:aspect-auto flex items-center justify-center relative">
                 <QrScanner onScan={(text) => scanProduct(text)} onError={(err) => toast.error(err)} />
               </div>
-              <div className="p-6 flex flex-col justify-center gap-4 bg-white">
-                <div className="space-y-2">
+              <div className="p-6 md:p-0 flex flex-col justify-center gap-4 bg-white">
+                <div className="space-y-2 md:space-y-0">
                   <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">Input Manual</Label>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
@@ -250,6 +271,7 @@ export default function KasirPage() {
                   <CardContent className="p-4 flex flex-wrap items-center gap-4">
                     <div className="flex-1 min-w-[150px]">
                       <h4 className="font-bold text-slate-800">{item.product.name}</h4>
+                      <h5 className="font-bold text-slate-600">{item.product.description}</h5>
                       <p className="text-sm text-slate-500">{formatCurrency(item.product.price_sell)}</p>
                     </div>
                     <div className="flex items-center bg-slate-100 rounded-full p-1">
@@ -304,19 +326,17 @@ export default function KasirPage() {
         </div>
 
         {/* Dynamic Form for Hutang */}
-        {paymentMethod === 'hutang' && (
-          <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
-            <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">Informasi Pelanggan</Label>
-            <div className="grid gap-3">
-              <Input placeholder="Nama Toko/Perusahaan" value={tokoName} onChange={(e) => setTokoName(e.target.value)} />
-              <Input placeholder="Nama Penanggung Jawab" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
-              <div className="grid grid-cols-2 gap-2">
-                <Input placeholder="Plat Nomor" value={vehiclePlate} onChange={(e) => setVehiclePlate(e.target.value.toUpperCase())} />
-                <Input placeholder="No. Telepon" value={noTelp} onChange={(e) => setNoTelp(e.target.value)} />
-              </div>
+        <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+          <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">Informasi Pelanggan</Label>
+          <div className="grid gap-3">
+            <Input placeholder="Nama Toko/Perusahaan" value={tokoName} onChange={(e) => setTokoName(e.target.value)} />
+            <Input placeholder="Nama Penanggung Jawab" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+            <div className="grid grid-cols-2 gap-2">
+              <Input placeholder="Plat Nomor" value={vehiclePlate} onChange={(e) => setVehiclePlate(e.target.value.toUpperCase())} />
+              <Input placeholder="No. Telepon" value={noTelp} onChange={(e) => setNoTelp(e.target.value)} />
             </div>
           </div>
-        )}
+        </div>
 
         <Separator />
 
@@ -361,6 +381,47 @@ export default function KasirPage() {
           </div>
         </div>
 
+        {/* Discount Fees */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">Potongan harga</Label>
+            <Button variant="ghost" size="sm" className="h-8 px-2 text-orange-600" onClick={() => setDiscount([...discount, { discountName: '', discountPrice: 0 }])}>
+              <PlusCircleIcon className="h-4 w-4 mr-1" /> Tambah
+            </Button>
+          </div>
+          
+          <div className="space-y-2">
+            {discount.map((item, index) => (
+              <div key={index} className="flex gap-2 animate-in zoom-in-95">
+                <Input 
+                  placeholder="Nama Potongan" 
+                  className="flex-[2]" 
+                  value={item.discountName} 
+                  onChange={(e) => {
+                    const newDiscount = [...discount];
+                    newDiscount[index].discountName = e.target.value;
+                    setDiscount(newDiscount);
+                  }}
+                />
+                <Input 
+                  placeholder="Harga" 
+                  className="flex-[1]" 
+                  type="number"
+                  value={item.discountPrice || ''}
+                  onChange={(e) => {
+                    const newDiscount = [...discount];
+                    newDiscount[index].discountPrice = Number(e.target.value);
+                    setDiscount(newDiscount);
+                  }}
+                />
+                <Button size="icon" variant="ghost" className="text-slate-300" onClick={() => setDiscount(discount.filter((_, i) => i !== index))}>
+                  <MinusCircleIcon className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Final Summary Card */}
         <div className="mt-auto space-y-4">
           <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-xl shadow-orange-500/10">
@@ -375,6 +436,12 @@ export default function KasirPage() {
                   <span>{formatCurrency(serviceFee.reduce((sum, f) => sum + f.servicePrice, 0))}</span>
                 </div>
               )}
+              {discount.length > 0 && (
+                <div className="flex justify-between">
+                  <span>Potongan</span>
+                  <span className='text-red-500'>- {formatCurrency(discount.reduce((sum, f) => sum + f.discountPrice, 0))}</span>
+                </div>
+              )}
             </div>
             <Separator className="bg-white/10 mb-4" />
             <div className="flex items-center justify-between">
@@ -383,7 +450,7 @@ export default function KasirPage() {
             </div>
           </div>
 
-          <div className="grid gap-2">
+          <div className="mb-12 md:mb-0 grid gap-2">
             <Button 
               className="w-full h-14 text-lg font-bold bg-orange-500 hover:bg-orange-600 shadow-lg shadow-orange-500/20"
               disabled={items.length === 0 || isCheckingOut}
@@ -399,6 +466,16 @@ export default function KasirPage() {
             >
               Simpan Sebagai Draft
             </Button>
+            {transactionId && (  
+              <Button 
+                variant="outline" 
+                className="w-full h-12 border-slate-200"
+                onClick={handleCancelTransaction}
+              >
+                Batalkan Transaksi
+              </Button>
+              )
+            }
           </div>
         </div>
       </aside>

@@ -1,19 +1,30 @@
 'use client';
 
 import { forwardRef, useEffect, useState } from 'react';
-import type { Transaction } from '@/types';
+import type { Transaction, TransactionDetail } from '@/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
 interface PrintReceiptProps {
   transaction: Transaction;
+  products: {
+    data: TransactionDetail[];
+    total: number;
+  }
+  servicefees: {
+      data: TransactionDetail[];
+      total: number;
+    };
+  potongan: {
+      data: TransactionDetail[];
+      total: number;
+    };
 }
 
 const PrintReceipt = forwardRef<HTMLDivElement, PrintReceiptProps>(
-  ({ transaction }, ref) => {
+  ({ transaction, products, servicefees, potongan }, ref) => {
     const [isClient, setIsClient] = useState(false)
-    const itemsTotal = transaction.details?.reduce((s, d) => s + Number(d.subtotal), 0) ?? Number(transaction.total_price);
-    const serviceFee = Number(transaction.service_fee ?? 0);
-    const total = itemsTotal + serviceFee;
+    const total = products.total + servicefees.total;
+    const grandTotal = products.total + servicefees.total - potongan.total;
 
     const isHutang = transaction.payment_method?.toLowerCase() === 'hutang';
     
@@ -72,9 +83,17 @@ const PrintReceipt = forwardRef<HTMLDivElement, PrintReceiptProps>(
               </tr>
             </thead>
             <tbody>
-              {transaction.details?.map((detail) => (
+              {products.data.map((detail) => (
                 <tr key={detail.id}>
-                  <td style={{ padding: '2px 0' }}>{detail.product?.name ?? `Item #${detail.product_id}`}</td>
+                  <td style={{ padding: '2px 0' }}>{detail.product?.name}</td>
+                  <td style={{ textAlign: 'center' }}>{detail.qty}</td>
+                  <td style={{ textAlign: 'right' }}>{formatCurrency(detail.price_at_time)}</td>
+                  <td style={{ textAlign: 'right' }}>{formatCurrency(detail.subtotal)}</td>
+                </tr>
+              ))}
+              {servicefees.data.map((detail) => (
+                <tr key={detail.id}>
+                  <td style={{ padding: '2px 0' }}>Service {detail.product_name}</td>
                   <td style={{ textAlign: 'center' }}>{detail.qty}</td>
                   <td style={{ textAlign: 'right' }}>{formatCurrency(detail.price_at_time)}</td>
                   <td style={{ textAlign: 'right' }}>{formatCurrency(detail.subtotal)}</td>
@@ -101,20 +120,20 @@ const PrintReceipt = forwardRef<HTMLDivElement, PrintReceiptProps>(
           {/* Rincian Harga */}
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Subtotal:</span>
-              <span>{formatCurrency(itemsTotal)}</span>
+              <span>Subtotal Product:</span>
+              <span>{formatCurrency(total)}</span>
             </div>
-            {serviceFee > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Jasa:</span>
-                <span>{formatCurrency(serviceFee)}</span>
-              </div>
-            )}
+            {potongan.data.map((detail) => (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Potongan {detail.product_name}</span>
+                  <span style={{fontWeight: 'bold'}}>{formatCurrency(detail.subtotal)}</span>
+                </div>
+              ))}
             <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', borderTop: '1px double black', marginTop: '2px', paddingTop: '2px' }}>
               <span>TOTAL:</span>
               {/* Render placeholder atau Rp 0 saat di server, 
                   render total asli saat sudah di client */}
-              {isClient ? formatCurrency(total) : 'Rp 0'}
+              {isClient ? formatCurrency(grandTotal) : 'Rp 0'}
             </div>
             {isHutang && (
               <div style={{ fontSize: '9px', textAlign: 'right', marginTop: '2px', fontWeight: 'bold' }}>

@@ -16,7 +16,7 @@ function generateInvoiceNumber(): string {
 }
 
 export async function processCheckout(payload: CheckoutPayload, userId: number) {
-  const { customer_name, vehicle_plate, payment_method, status, midtrans_order_id, items, total_price, service_fees = [], due_date, toko_name, no_telp } = payload;
+  const { customer_name, vehicle_plate, payment_method, status, midtrans_order_id, items, total_price, service_fees = [], due_date, toko_name, no_telp, discount = [] } = payload;
 
   // Validate items stock before starting transaction
   for (const item of items) {
@@ -112,6 +112,21 @@ export async function processCheckout(payload: CheckoutPayload, userId: number) 
       );
     }
 
+    // 4. create discount
+    for (const item of discount) {
+      await TransactionDetail.create(
+        {
+          transaction_id: transaction.id,
+          product_name: item.discount_name,
+          product_type: 'discount',
+          qty: 1, // Discount is treated as a single item
+          price_at_time: item.discount_price,
+          subtotal: item.discount_price, // Assuming subtotal is the same as the discount price for simplicity
+        },
+        { transaction: t }
+      );
+    }
+
     return transaction;
   });
 
@@ -128,6 +143,18 @@ export async function processCheckout(payload: CheckoutPayload, userId: number) 
   return fullTransaction ? fullTransaction.get({ plain: true }) : null;
 }
 
+export async function getTransaction(id: number) {
+  const transaction = await Transaction.findByPk(id, {
+    include: [
+      {
+        association: 'details',
+        include: [{ association: 'product' }],
+      },
+    ],
+  });
+  return transaction ? transaction.get({ plain: true }) : null;
+}
+
 export async function getTransactions(page = 1, limit = 20, status?: string, metode?: string) {
   const offset = (page - 1) * limit;
   const where: Record<string, unknown> = {};
@@ -136,7 +163,7 @@ export async function getTransactions(page = 1, limit = 20, status?: string, met
 
   const { count, rows } = await Transaction.findAndCountAll({
     where,
-    include: [{ association: 'details', include: [{ association: 'product' }] }],
+    include: [{ association: 'details', include: [{ association: 'product' }] }, { association: 'user', attributes: ['username', 'role'] }],
     order: [['createdAt', 'DESC']],
     limit,
     offset,
@@ -186,6 +213,48 @@ export async function updateTransactionStatus(id: number, status: TransactionSta
   return trx;
 }
 
+//edit transaction
+export async function updateTransaction(id: number, data: Partial<Transaction>) {
+  const trx = await Transaction.findByPk(id);
+  if (!trx) throw new Error('Transaksi tidak ditemukan');
+
+ await sequelize.transaction(async (t) => {
+    // 1. Update the transaction status
+    await trx.update(data, { transaction: t });
+
+    // 2. On cancellation: restore stock and log each adjustment
+    if (data.status === 'cancelled') {
+      const details = await TransactionDetail.findAll({
+        where: { transaction_id: id },
+        transaction: t,
+      });
+
+      for (const detail of details) {
+        // Restore product stock
+        await Product.increment('stock', {
+          by: detail.qty,
+          where: { id: detail.product_id },
+          transaction: t,
+        });
+
+        if(!detail.product_id) continue; // Skip if no associated product (e.g. service fee)
+        // Log the stock restoration
+        await StockLog.create(
+          {
+            product_id: detail.product_id,
+            type: 'in',
+            amount: detail.qty,
+            reason: 'adjustment',
+          },
+          { transaction: t }
+        );
+      }
+    }
+  });
+
+  return trx;
+}
+
 export async function getPendingHutangTransactions() {
   const now = new Date();
   const tenDaysLater = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000);
@@ -199,6 +268,15 @@ export async function getPendingHutangTransactions() {
       },
     },
     order: [['due_date', 'ASC']],
+  });
+}
+
+export async function getDraftTransactions() {
+  return Transaction.findAndCountAll({
+    where: {
+      status: 'draft',
+    },
+    order: [['createdAt', 'ASC']],
   });
 }
 

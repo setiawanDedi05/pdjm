@@ -14,10 +14,11 @@ import { Plus, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { StockLog, Product } from '@/types';
+import { useAppStore } from '@/stores/appStore';
 export default function StockPage() {
   const [logs, setLogs] = useState<StockLog[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { setLoading} = useAppStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ product_id: '', amount: 1, type: 'in' as 'in' | 'out', reason: 'purchase' as string });
@@ -26,12 +27,6 @@ export default function StockPage() {
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [pendingPage, setPendingPage] = useState<number|null>(null);
-
-  useEffect(() => {
-  console.log({
-      products
-    })
-  }, [products]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -206,7 +201,7 @@ export default function StockPage() {
                 <SelectTrigger>
                   <SelectValue placeholder="Pilih produk..." />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent style={{backgroundColor: 'white', overflowY: 'auto', height: '200px'}}>
                   <>
                   {products?.map((p) => (
                     <SelectItem key={p.id} value={String(p.id)}>
@@ -224,7 +219,7 @@ export default function StockPage() {
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent style={{backgroundColor: 'white'}}>
                     <SelectItem value="in">Stok Masuk</SelectItem>
                     <SelectItem value="out">Stok Keluar</SelectItem>
                   </SelectContent>
@@ -241,7 +236,7 @@ export default function StockPage() {
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent style={{backgroundColor: 'white'}}>
                   {form.type === 'in' ? (
                     <>
                       <SelectItem value="purchase">Pembelian Barang</SelectItem>

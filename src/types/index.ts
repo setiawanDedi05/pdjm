@@ -1,6 +1,6 @@
 export type UserRole = 'admin' | 'kasir' | 'mekanik';
 export type PaymentMethod = 'cash' | 'qris' | 'va' | 'hutang' | 'transfer';
-export type TransactionStatus = 'pending' | 'paid' | 'cancelled';
+export type TransactionStatus = 'pending' | 'paid' | 'cancelled' | 'draft' | 'inprogress';
 export type StockLogType = 'in' | 'out';
 export type StockLogReason = 'sale' | 'adjustment' | 'purchase';
 
@@ -46,6 +46,7 @@ export interface Transaction {
   no_telp?: string;
   vehicle_plate: string;
   user_id: number;
+  user: User;
   midtrans_order_id?: string | null;
   due_date?: Date;
   createdAt: Date;
@@ -58,7 +59,7 @@ export interface TransactionDetail {
   id: number;
   transaction_id: number;
   product_id: number;
-  product_type: 'part' | 'service';
+  product_type: 'part' | 'service' | 'discount';
   product_name?: string;
   qty: number;
   price_at_time: number;
@@ -103,6 +104,10 @@ export interface CheckoutPayload {
   service_fees?: Array<{
     service_name: string;
     service_price: number;
+  }>;
+  discount?: Array<{
+    discount_name: string;
+    discount_price: number;
   }>;
 }
 
