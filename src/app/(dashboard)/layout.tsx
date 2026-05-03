@@ -6,11 +6,10 @@ import { FloatingAlert } from '@/components/FloatingAlert';
 import { FloatingCart } from '@/components/FloatingCart';
 import Loading from '@/components/Loading';
 import Sidebar from '@/components/Sidebar';
-import { useAppStore } from '@/stores/appStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 export default function DashboardLayout({
@@ -73,7 +72,11 @@ export default function DashboardLayout({
           items.length > 0 && pathname === '/products' && <FloatingCart />
         }
       </div>
-      <main className="flex-1 overflow-auto bg-slate-50">{children}</main>
+      <main className="flex-1 overflow-auto bg-slate-50">
+        <Suspense fallback={<>...</>}>
+          {children}
+        </Suspense>
+        </main>
       <div className="md:hidden">
         <BottomNav />
       </div>

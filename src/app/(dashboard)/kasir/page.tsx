@@ -15,14 +15,13 @@ import {
   Banknote, CreditCard, BanknoteXIcon, 
   PlusCircleIcon, MinusCircleIcon, Search 
 } from 'lucide-react';
-import { formatCurrency, generateLongId, generateShortId } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Product, TransactionStatus } from '@/types';
+import { Product } from '@/types';
 import { 
   Dialog, DialogContent, DialogHeader, 
   DialogTitle, DialogDescription, DialogClose, DialogFooter 
 } from '@/components/ui/dialog';
-import { Transaction } from '@/models';
 
 const QrScanner = dynamic(() => import('@/components/QrScanner'), { ssr: false });
 

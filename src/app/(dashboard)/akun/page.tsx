@@ -33,7 +33,7 @@ const AkunPage = () => {
             
             <div className="text-center md:text-left flex-1">
               <div className="flex flex-wrap justify-center md:justify-start items-center gap-3 mb-2">
-                <h1 className="text-2xl md:text-3xl font-bold">{user?.username}</h1>
+                <h1 className="text-2xl md:text-3xl font-bold">{user?.name.toUpperCase()}({user?.username})</h1>
                 <span className="px-3 py-0.5 bg-white/20 rounded-full text-xs font-bold uppercase tracking-wider border border-white/30">
                   {user?.role}
                 </span>

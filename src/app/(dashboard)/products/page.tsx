@@ -286,7 +286,7 @@ export default function ProductsPage() {
           <h1 className="text-2xl font-bold text-slate-800">Manajemen Produk</h1>
           <p className="text-sm text-slate-500">Kelola data produk dan suku cadang</p>
         </div>
-        {isAdmin && <div className="flex gap-2">
+        {isAdmin && <div className="flex flex-col md:flex-row gap-2">
           <Button className="w-full bg-orange-500 hover:bg-orange-600 text-white"
                 onClick={() => handlePrintQrBulk()}
               >
