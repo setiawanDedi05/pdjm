@@ -1,7 +1,8 @@
 import { useAppStore } from "@/stores/appStore";
+import { Progress } from "./ui/progress";
 
 const Loading = () => {
-    const {loading} = useAppStore();
+    const {loading, progress} = useAppStore();
     if(loading) {
         return (
             <div className="fixed inset-0 flex flex-col items-center justify-center bg-black/20 z-50">
@@ -12,8 +13,13 @@ const Loading = () => {
                     <div className="absolute w-20 h-20 border-2 border-blue-100 rounded-2xl animate-ping"></div>
                 </div>
                 <p className="mt-6 text-sm font-medium text-gray-500 tracking-widest uppercase animate-bounce">
-                    Loading...
+                    {progress > 0 ? 'Dalam Proses...' : 'Loading...'}
                 </p>
+                {progress > 0 && 
+                    <div className="w-[200px] mt-6">
+                        <Progress value={progress} /> 
+                    </div>   
+                }
             </div>
         )
     }

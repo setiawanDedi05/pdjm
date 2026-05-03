@@ -76,3 +76,20 @@ export const generateLongId = () => {
   return crypto.randomBytes(6).toString('hex'); // 6 bytes = 12 karakter hex
 };
 
+interface ProgressCalculation {
+  current: number;
+  total: number;
+  fallback?: number;
+}
+
+export const calculateProgress = ({ current, total, fallback = 0 }: ProgressCalculation): number => {
+  // 1. Defensif terhadap pembagian nol (Division by Zero)
+  if (total <= 0) return fallback;
+
+  // 2. Hitung persentase
+  const percentage = (current / total) * 100;
+
+  // 3. Clamp value antara 0 - 100 & bulatkan
+  return Math.min(Math.max(Math.round(percentage), 0), 100);
+};
+

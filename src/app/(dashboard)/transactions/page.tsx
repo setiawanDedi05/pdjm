@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, use } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination } from '@/components/ui/Pagination';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Printer, Eye, ListOrdered } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -17,7 +17,8 @@ import { useAuthStore } from '@/stores/authStore';
 import dynamic from 'next/dynamic';
 import { useAppStore } from '@/stores/appStore';
 
-const PrintReceipt = dynamic(() => import('@/components/PrintReceipt'), { ssr: false });
+const PrintSmallReceipt = dynamic(() => import('@/components/PrintSmallReceipt'), { ssr: false });
+const PrintBigReceipt = dynamic(() => import('@/components/PrintReceipt'), { ssr: false });
 
 const statusColors: Record<string, string> = {
   paid: 'bg-green-100 text-green-700',
@@ -27,6 +28,7 @@ const statusColors: Record<string, string> = {
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const {user} = useAuthStore()
   const [status, setStatus] = useState('all');
   const {setLoading} = useAppStore();
   const [selected, setSelected] = useState<Transaction | null>(null);
@@ -59,7 +61,9 @@ export default function TransactionsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [pendingPage, setPendingPage] = useState<number|null>(null);
   const printRef = useRef<HTMLDivElement>(null);
+  const bigPrintRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({ contentRef: printRef });
+  const handleBigPrint = useReactToPrint({ contentRef: bigPrintRef });
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true);
@@ -279,6 +283,7 @@ export default function TransactionsPage() {
           {selected && (
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-2 text-sm">
+                <div><span className="text-slate-500">Admin/Kasir:</span> <span className="font-mono font-semibold">{selected.user.name}({selected.user.username})</span></div>
                 <div><span className="text-slate-500">Invoice:</span> <span className="font-mono font-semibold">{selected.invoice_number}</span></div>
                 <div><span className="text-slate-500">Tanggal:</span> <span>{formatDate(selected.createdAt)}</span></div>
                 <div><span className="text-slate-500">Customer:</span> <span>{selected.customer_name}</span></div>
@@ -358,11 +363,18 @@ export default function TransactionsPage() {
                     {isCheckingMidtrans ? 'Memeriksa...' : 'Cek Status Midtrans'}
                   </Button>
                 )}
+                <div className='flex gap-2 ml-auto'>
                 {selected.status !== 'cancelled' &&  
                   <Button size="sm" variant="outline" onClick={() => handlePrint()} className="ml-auto">
-                    <Printer className="h-3.5 w-3.5 mr-1" /> Cetak
+                    <Printer className="h-3.5 w-3.5 mr-1" /> Cetak Struk Kecil
                 </Button>
                 }
+                {selected.status !== 'cancelled' && user?.role === 'admin' &&  
+                  <Button size="sm" variant="outline" onClick={() => handleBigPrint()} className="ml-auto">
+                    <Printer className="h-3.5 w-3.5 mr-1" /> Cetak Struk Besar
+                </Button>
+                }
+                </div>
               </div>
             </div>
           )}
@@ -372,7 +384,12 @@ export default function TransactionsPage() {
       {/* Hidden print area */}
       {selected && (
         <div className="hidden">
-          <PrintReceipt ref={printRef} transaction={selected} potongan={potongan} servicefees={serviceFees} products={products} />
+          <PrintSmallReceipt ref={printRef} transaction={selected} potongan={potongan} servicefees={serviceFees} products={products} />
+        </div>
+      )}
+      {selected && (
+        <div className="hidden">
+          <PrintBigReceipt ref={bigPrintRef} transaction={selected} potongan={potongan} servicefees={serviceFees} products={products} />
         </div>
       )}
     </div>

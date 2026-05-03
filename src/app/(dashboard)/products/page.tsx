@@ -8,9 +8,9 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table as ReusableTable, Column } from '@/components/ui/ReusableTable';
 import { Pagination } from '@/components/ui/Pagination';
-import { Plus, Search, Edit, Trash2, Package, QrCode, Printer, Upload, ShoppingBag } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Package, QrCode, Printer, Upload, ShoppingBag, ChartBar, ChartArea } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { formatCurrency, generateShortId } from '@/lib/utils';
+import { calculateProgress, formatCurrency, generateShortId } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { CartItem, Product } from '@/types';
 import { useReactToPrint } from 'react-to-print';
@@ -20,6 +20,8 @@ import { useAuthStore } from '@/stores/authStore';
 import { useAppStore } from '@/stores/appStore';
 import { useCartStore } from '@/stores/cartStore';
 import SmartNumericInput from '@/components/ui/SmartNumericInput';
+import PrintQrLabelBulk from '@/components/PrintQrLabelBulk';
+import { ProductChartPerMonth } from '@/components/ui/Charts';
 
 const emptyForm = {
   serial_number: '',
@@ -46,21 +48,42 @@ export default function ProductsPage() {
   const isAdmin = user?.role === 'admin';
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogChart, setDialogChart] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [qrProduct, setQrProduct] = useState<Product | null>(null);
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const qrPrintRef = useRef<HTMLDivElement>(null);
-  const { addItem, items  } = useCartStore();
+  const qrPrintBulkRef = useRef<HTMLDivElement>(null);
+  const { addItem  } = useCartStore();
   const handlePrintQr = useReactToPrint({ contentRef: qrPrintRef });
-  const {setLoading} = useAppStore();
+  const handlePrintQrBulk = useReactToPrint({
+  contentRef: qrPrintBulkRef,
+  documentTitle: 'QR_Labels',
+  onAfterPrint: () => console.log('Print Success'),
+  // Jika masih blank, coba tambahkan trigger delay
+  print: async (printIframe) => {
+    await new Promise(resolve => setTimeout(resolve, 500)); 
+    printIframe?.contentWindow?.print();
+  }
+});
+  const {setLoading, setProgress} = useAppStore();
+  const [productSalesDataPerMonth, setProductSalesDataPerMonth] = useState<{
+    content: {label: string, sale: number}[],
+    product: Product | null
+  }>({
+    content: [],
+    product: null
+  });
   
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
       setImporting(true);
       setImportError(null);
+      setLoading(true);
+      setImportDialogOpen(false);
       try {
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data, { type: 'array' });
@@ -88,6 +111,9 @@ export default function ProductsPage() {
         const imported = [];
         const errors = [];
         for (let i = 1; i < rows.length; i++) {
+          setProgress(calculateProgress({
+            current: i, total: rows.length
+          }));
           const row = rows[i] as any[];
           if (!row[colMap.name]) continue;
           const product = {
@@ -116,7 +142,6 @@ export default function ProductsPage() {
             errors.push(`Baris ${i + 1}: ${product.name} - ${err.message || err}`);
           }
         }
-        setImportDialogOpen(false);
         fetchProducts();
         if (imported.length)
           toast.success(`${imported.length} produk berhasil diimport.`);
@@ -126,6 +151,7 @@ export default function ProductsPage() {
         setImportError(err.message || 'Gagal membaca file. Pastikan format Excel benar.');
       } finally {
         setImporting(false);
+        setLoading(false)
       }
     };
 
@@ -237,6 +263,21 @@ export default function ProductsPage() {
       toast.error(err instanceof Error ? err.message : 'Gagal menghapus');
     }
   }
+  
+  async function handleOpenChart(p:Product) {
+    if(!p) return;
+    setDialogChart(true);
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/reports/product-sale/${p.id}?year=${new Date().getFullYear()}`, { credentials: 'include' });
+      const response = await res.json();
+      setProductSalesDataPerMonth(response.data);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Gagal menghapus');
+    } finally{
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="p-6 space-y-4">
@@ -246,6 +287,11 @@ export default function ProductsPage() {
           <p className="text-sm text-slate-500">Kelola data produk dan suku cadang</p>
         </div>
         {isAdmin && <div className="flex gap-2">
+          <Button className="w-full bg-orange-500 hover:bg-orange-600 text-white"
+                onClick={() => handlePrintQrBulk()}
+              >
+                <Printer className="h-4 w-4 mr-2" /> Cetak Label QR
+          </Button>
           <Button onClick={() => setImportDialogOpen(true)} variant="outline" className="border-orange-500 text-orange-600">
             <Upload className="h-4 w-4 mr-2" /> Import Excel
           </Button>
@@ -301,7 +347,7 @@ export default function ProductsPage() {
           <div className="relative">
             <ReusableTable<Product>
               columns={[
-                { key: 'serial_number', header: 'Serial', render: (p) => p.alias_supplier ? `${p.alias_supplier}-${p.serial_number.toUpperCase()}` : p.serial_number, className: 'font-mono text-xs' },
+                { key: 'serial_number', header: 'Serial', render: (p) => `${p.serial_number.toUpperCase()}`, className: 'font-mono text-xs' },
                 { key: 'name', header: 'Nama', className: 'font-medium' },
                 { key: 'description', header: 'Description', render: (p) => p.description ?? '-', className: 'font-medium' },
                 { key: 'stock', header: 'Stok', render: (p) => <span className={p.stock <= p.minimum_stock ? 'text-red-600 font-bold' : ''}>{p.stock}</span>, className: 'text-right' },
@@ -322,6 +368,10 @@ export default function ProductsPage() {
                     }
                     {isAdmin && <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500" onClick={() => handleDelete(p)}>
                         <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    }
+                    {isAdmin && <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500" onClick={() => handleOpenChart(p)}>
+                        <ChartArea className="h-3.5 w-3.5" />
                       </Button>
                     }
                   </div>
@@ -467,10 +517,25 @@ export default function ProductsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog Chart */}
+      <Dialog open={dialogChart} onOpenChange={setDialogChart}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Grafik Penjualan Product {productSalesDataPerMonth?.product?.name}</DialogTitle>
+          </DialogHeader>
+          <ProductChartPerMonth data={productSalesDataPerMonth.content} />
+        </DialogContent>
+      </Dialog>
+
       {/* Hidden QR print area */}
       {qrProduct && (
         <div className="hidden">
           <PrintQrLabel ref={qrPrintRef} product={qrProduct} />
+        </div>
+      )}
+      {products.length > 0 && (
+        <div className="hidden">
+          <PrintQrLabelBulk ref={qrPrintBulkRef} products={products} />
         </div>
       )}
     </div>

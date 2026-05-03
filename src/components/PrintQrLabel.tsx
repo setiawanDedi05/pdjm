@@ -3,7 +3,6 @@
 import { forwardRef } from 'react';
 import QRCode from 'react-qr-code';
 import type { Product } from '@/types';
-import { formatDateShort } from '@/lib/utils';
 
 interface PrintQrLabelProps {
   product: Product;

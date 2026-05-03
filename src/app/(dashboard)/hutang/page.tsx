@@ -14,7 +14,6 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { Transaction, TransactionDetail, TransactionStatus } from '@/types';
 import { useReactToPrint } from 'react-to-print';
-import { useAuthStore } from '@/stores/authStore';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import { useAppStore } from '@/stores/appStore';
@@ -233,6 +232,7 @@ export default function HutangPage() {
                 {selected && (
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div><span className="text-slate-500">Admin/Kasir:</span> <span className="font-mono font-semibold">{selected.user.name}({selected.user.username})</span></div>
                       <div><span className="text-slate-500">Invoice:</span> <span className="font-mono font-semibold">{selected.invoice_number}</span></div>
                       <div><span className="text-slate-500">Tanggal:</span> <span>{formatDate(selected.createdAt)}</span></div>
                       <div><span className="text-slate-500">Tanggal Jatuh Tempo:</span> <span>{selected.due_date ? formatDate(new Date(selected.due_date)) : '-'}</span></div>

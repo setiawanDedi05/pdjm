@@ -163,7 +163,7 @@ export async function getTransactions(page = 1, limit = 20, status?: string, met
 
   const { count, rows } = await Transaction.findAndCountAll({
     where,
-    include: [{ association: 'details', include: [{ association: 'product' }] }, { association: 'user', attributes: ['username', 'role'] }],
+    include: [{ association: 'details', include: [{ association: 'product' }] }, { association: 'user', attributes: ['username', 'role', 'name'] }],
     order: [['createdAt', 'DESC']],
     limit,
     offset,

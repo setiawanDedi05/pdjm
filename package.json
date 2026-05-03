@@ -1,12 +1,13 @@
 {
   "name": "bengkel-pos",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "scripts": {
     "dev:bengkel": "next dev -H 192.168.100.111",
-    "dev": "next dev -H 192.168.1.111",
+    "dev:dahuna": "next dev -H 192.168.1.111",
+    "dev": "next dev",
     "build": "next build",
-    "start": "next start -H 0.0.0.0",
+    "start": "next start",
     "lint": "eslint",
     "seed": "tsx src/scripts/seed.ts"
   },
@@ -14,6 +15,7 @@
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-label": "^2.1.8",
+    "@radix-ui/react-progress": "^1.1.8",
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",

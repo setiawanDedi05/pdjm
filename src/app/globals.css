@@ -26,7 +26,7 @@ body {
 @media print {
   @page {
     size: 58mm auto;
-    margin: 2mm;
+    margin: 5mm;
   }
 
   body * {
@@ -45,6 +45,14 @@ body {
     width: 54mm;
     font-size: 10px;
     font-family: 'Courier New', Courier, monospace;
+    /* Mencegah elemen terpotong di tengah */
+    break-inside: avoid;
+    /* Dukungan untuk browser lama/legacy */
+    page-break-inside: avoid;
+    
+    /* Tambahan agar lebih stabil */
+    display: block; 
+    position: relative;
   }
 
   .no-print {
@@ -73,6 +81,19 @@ nextjs-portal {
   /* Kamu bisa tambah variabel tema v4 di sini jika perlu */
   --color-scrollbar-thumb: var(--color-slate-300);
   --color-scrollbar-hover: var(--color-slate-400);
+
+  /* Mendefinisikan animasi kustom langsung di CSS v4 */
+  @keyframes shimmer {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(100%); }
+  }
+  
+  /* Mendaftarkan utility animasi */
+  --animate-shimmer: shimmer 2s infinite;
+  
+  /* Custom colors menggunakan CSS variables v4 */
+  --color-brand-primary: #3b82f6;
+  --color-brand-success: #10b981;
 }
 
 /* Custom Scrollbar - The V4 Way */

@@ -13,6 +13,7 @@ export interface ServiceFee {
 export interface User {
   id: number;
   username: string;
+  name: string;
   role: UserRole;
   createdAt: Date;
   updatedAt: Date;

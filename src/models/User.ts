@@ -6,6 +6,7 @@ import type { UserRole } from '@/types';
 interface UserAttributes {
   id: number;
   username: string;
+  name: string;
   password: string;
   role: UserRole;
 }
@@ -14,6 +15,7 @@ interface UserCreationAttributes extends Optional<UserAttributes, 'id'> {}
 
 class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   declare id: number;
+  declare name: string;
   declare username: string;
   declare password: string;
   declare role: UserRole;
@@ -27,6 +29,7 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
   toSafeObject() {
     return {
       id: this.id,
+      name: this.name,
       username: this.username,
       role: this.role,
       createdAt: this.createdAt,
@@ -46,6 +49,14 @@ User.init(
       type: DataTypes.STRING(50),
       allowNull: false,
       unique: true,
+      validate: {
+        len: [3, 50],
+        notEmpty: true,
+      },
+    },
+    name: {
+      type: DataTypes.STRING(50),
+      allowNull: false,
       validate: {
         len: [3, 50],
         notEmpty: true,

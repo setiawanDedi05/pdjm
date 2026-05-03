@@ -53,3 +53,33 @@ export function ProductInBarChart({ data, title }: { data: any[], title?: string
     </div>
   );
 }
+
+export function ProductChartPerMonth({ data }: { data: any[], title?: string }) {
+  const monthMapping: Record<string, string> = {
+    'Januari': 'Jan', 'Februari': 'Feb', 'Maret': 'Mar', 'April': 'Apr',
+    'Mei': 'Mei', 'Juni': 'Jun', 'Juli': 'Jul', 'Agustus': 'Agu',
+    'September': 'Sep', 'Oktober': 'Okt', 'November': 'Nov', 'Desember': 'Des',
+    // Fallback jika datanya berupa angka bulan (string)
+    '1': 'Jan', '2': 'Feb', '3': 'Mar', '4': 'Apr', '5': 'Mei', '6': 'Jun',
+    '7': 'Jul', '8': 'Agu', '9': 'Sep', '10': 'Okt', '11': 'Nov', '12': 'Des'
+  };
+
+  const formatMonthLabel = (value: string) => {
+    return monthMapping[value] || value.substring(0, 3);
+  };
+
+  return (
+    <div className="w-full h-72">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis interval={0} dataKey="label" tickFormatter={formatMonthLabel} dy={5} />
+          <YAxis />
+          <Tooltip />
+          <Legend />
+          <Bar dataKey="sale" fill="#10b981" name="Produk Terjual" />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}

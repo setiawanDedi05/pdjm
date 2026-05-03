@@ -49,7 +49,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const transaction = await Transaction.findByPk(Number(id), {
       include: [
         { association: 'details', include: [{ association: 'product' }] },
-        { association: 'user', attributes: ['id', 'username', 'role'] },
+        { association: 'user', attributes: ['id', 'username', 'role', "name"] },
       ],
     });
     if (!transaction) return apiError('Transaksi tidak ditemukan', 404);

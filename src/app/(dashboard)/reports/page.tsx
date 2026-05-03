@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { RevenueLineChart, ProductSaleBarChart, ProductInBarChart } from '@/components/ui/Charts';
+import { RevenueLineChart, ProductSaleBarChart, ProductInBarChart, ProductChartPerMonth } from '@/components/ui/Charts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BarChart3, TrendingUp, ShoppingCart, Package, LoaderIcon } from 'lucide-react';

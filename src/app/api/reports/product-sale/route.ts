@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Op } from 'sequelize';
 import { Transaction } from '@/models';
 
 // GET /api/reports/product-sale?period=day|month|year

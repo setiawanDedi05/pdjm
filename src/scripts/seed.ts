@@ -18,36 +18,28 @@ async function main() {
   // ─── Admin user ────────────────────────────────────────────────────────────
 
   await User.findOrCreate({
-    where: { username: 'admin satu' },
-    defaults: { username: 'admin1', password: 'admin123', role: 'admin' },
+    where: { username: 'admin1' },
+    defaults: { username: 'admin1', password: 'admin123', role: 'admin', name: "aji" },
   });
 
   await User.findOrCreate({
-    where: { username: 'admin dua' },
-    defaults: { username: 'admin2', password: 'admin123', role: 'admin' },
+    where: { username: 'admin2' },
+    defaults: { username: 'admin2', password: 'admin123', role: 'admin', name: "rudi" },
   });
 
   await User.findOrCreate({
-    where: { username: 'admin tiga' },
-    defaults: { username: 'admin3', password: 'admin123', role: 'admin' },
+    where: { username: 'admin3' },
+    defaults: { username: 'admin3', password: 'admin123', role: 'admin', name: 'admin tiga' },
   });
 
   // ─── Kasir user ────────────────────────────────────────────────────────────
   await User.findOrCreate({
-    where: { username: 'kasir satu' },
-    defaults: { username: 'kasir1', password: 'kasir123', role: 'kasir' },
+    where: { username: 'kasir1' },
+    defaults: { username: 'kasir1', password: 'kasir123', role: 'kasir', name: 'asep' },
   });
   await User.findOrCreate({
-    where: { username: 'kasir dua' },
-    defaults: { username: 'kasir2', password: 'kasir123', role: 'kasir' },
-  });
-  await User.findOrCreate({
-    where: { username: 'kasir tiga' },
-    defaults: { username: 'kasir3', password: 'kasir123', role: 'kasir' },
-  });
-  await User.findOrCreate({
-    where: { username: 'kasir empat' },
-    defaults: { username: 'kasir4', password: 'kasir123', role: 'kasir' },
+    where: { username: 'kasir2' },
+    defaults: { username: 'kasir2', password: 'kasir123', role: 'kasir', name: 'ari' },
   });
   await sequelize.close();
 }
